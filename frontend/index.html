@@ -1,0 +1,1581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Health Journal</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+        }
+
+        .sidebar {
+            width: 80px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            box-shadow: 2px 0 20px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px 0;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+        }
+
+        .month-nav {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            writing-mode: vertical-lr;
+            text-orientation: mixed;
+        }
+
+        .month-nav button {
+            background: #667eea;
+            color: white;
+            border: none;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px;
+            margin: 5px 0;
+            transition: all 0.3s ease;
+        }
+
+        .month-nav button:hover {
+            background: #5a67d8;
+            transform: scale(1.1);
+        }
+
+        .current-month {
+            color: #2d3748;
+            font-weight: 600;
+            font-size: 0.9rem;
+            margin: 10px 0;
+            text-align: center;
+            line-height: 1.2;
+        }
+
+        .day-index {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            flex: 1;
+        }
+
+        .day-btn {
+            width: 35px;
+            height: 35px;
+            border: 2px solid #e2e8f0;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            color: #4a5568;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .day-btn:hover {
+            background: #f7fafc;
+            border-color: #cbd5e0;
+        }
+
+        .day-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .day-btn.has-data {
+            background: #e6fffa;
+            border-color: #38b2ac;
+        }
+
+        .day-btn.has-photos::after {
+            content: '📸';
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            font-size: 12px;
+            background: #48bb78;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .day-btn.active.has-data {
+            background: #38b2ac;
+            border-color: #38b2ac;
+        }
+        /* Add this CSS to always highlight the current day */
+
+        .day-btn.current-day {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%) !important;
+            color: white !important;
+            border-color: #f5576c !important;
+            font-weight: 700 !important;
+            box-shadow: 0 2px 8px rgba(245, 87, 108, 0.3) !important;
+        }
+
+        .day-btn.current-day:hover {
+            transform: scale(1.05) !important;
+            box-shadow: 0 4px 12px rgba(245, 87, 108, 0.4) !important;
+        }
+
+        /* When current day is also selected */
+        .day-btn.current-day.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+            border-color: #667eea !important;
+            box-shadow: 0 0 0 3px rgba(245, 87, 108, 0.4) !important;
+        }
+
+        /* When current day has data */
+        .day-btn.current-day.has-data {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+            border-color: #059669 !important;
+        }
+
+        .main-content {
+            margin-left: 80px;
+            flex: 1;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .header.today-mode {
+            padding: 15px;
+        }
+
+        .header h1 {
+            color: #2d3748;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .header.today-mode h1 {
+            font-size: 2rem;
+            margin: 0;
+        }
+
+        .header .current-day {
+            color: #667eea;
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-width: 120px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn.secondary {
+            background: rgba(255, 255, 255, 0.9);
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+
+        .btn.secondary:hover {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn.capture {
+            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+            font-size: 1.1rem;
+            padding: 15px 30px;
+        }
+        
+        .btn.capture:hover {
+            box-shadow: 0 5px 15px rgba(72, 187, 120, 0.4);
+        }
+
+        .daily-view {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            flex: 1;
+            min-height: 400px;
+            overflow-y: auto;
+        }
+
+        .daily-view p {
+            margin-bottom: 15px;
+        }
+
+        .daily-view strong {
+            color: #2d3748;
+        }
+
+        .empty-state {
+            text-align: center;
+            color: #a0aec0;
+            font-style: italic;
+            padding: 50px 20px;
+            font-size: 1.1rem;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            background: white;
+            margin: 5% auto;
+            padding: 30px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .close:hover {
+            color: #000;
+        }
+
+        .stat {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding: 8px 0;
+            border-bottom: 1px solid #f7fafc;
+        }
+
+        .stat:last-child {
+            border-bottom: none;
+        }
+
+        .stat-label {
+            color: #718096;
+        }
+
+        .stat-value {
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .photo-upload-section {
+            margin: 20px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border: 2px dashed #dee2e6;
+        }
+
+        .photo-upload-section h4 {
+            margin-bottom: 15px;
+            color: #495057;
+        }
+
+        .photo-upload-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .photo-item {
+            position: relative;
+            aspect-ratio: 1;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #e9ecef;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .photo-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .photo-item .remove-photo {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: rgba(220, 53, 69, 0.8);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .add-photo-btn {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .add-photo-btn:hover {
+            background: #5a6268;
+        }
+
+        .photo-gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .photo-gallery .photo-item {
+            aspect-ratio: 1;
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        .photo-gallery .photo-item:hover {
+            transform: scale(1.05);
+        }
+
+        .template-section {
+            background: #f8f9fa;
+            border: 2px dashed #dee2e6;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 20px 0;
+        }
+
+        .template-header {
+            text-align: center;
+            color: #6c757d;
+            font-weight: bold;
+            margin-bottom: 20px;
+            font-size: 1.1rem;
+        }
+
+        .template-content {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+        }
+
+        .template-footer {
+            text-align: center;
+            color: #6c757d;
+            font-size: 0.9rem;
+            margin-top: 15px;
+        }
+        .journal-entry {
+            line-height: 1.6;  /* Reduced from 1.8 */
+            font-size: 1.05rem;
+            padding: 15px 0;   /* Reduced from 20px */
+        }
+
+        .journal-entry strong {
+            color: #2d3748;
+            display: block;
+            margin: 10px 0 3px 0;  /* Reduced spacing */
+        }
+
+        .journal-entry p {
+            margin-bottom: 10px;   /* Reduced from 15px */
+        }
+        /* COMPACT STYLES FOR PAST DAYS */
+        .past-day-display .daily-view {
+            padding: 15px !important;
+            min-height: auto !important;
+        }
+
+        .past-day-display .journal-entry {
+            line-height: 1.3 !important;
+            font-size: 0.95rem !important;
+            padding: 5px 0 !important;
+        }
+
+        .past-day-display .journal-entry strong {
+            margin: 4px 0 1px 0 !important;
+            font-size: 0.9rem !important;
+        }
+
+        .past-day-display .journal-entry p {
+            margin-bottom: 4px !important;
+        }
+
+        .past-day-display .daily-summary {
+            padding: 8px !important;
+            margin-bottom: 8px !important;
+        }
+
+        .past-day-display .daily-summary h4 {
+            margin: 0 0 4px 0 !important;
+            font-size: 0.9rem !important;
+        }
+
+        .past-day-display .daily-summary div {
+            font-size: 0.8rem !important;
+        }
+
+        .past-day-display .header {
+            padding: 8px !important;
+            margin-bottom: 8px !important;
+        }
+
+        .past-day-display .controls {
+            margin-bottom: 8px !important;
+            min-height: auto !important;
+            height: auto !important;
+            justify-content: flex-start !important;
+            gap: 0 !important;
+        }
+
+        .past-day-display .photo-gallery {
+            margin: 8px 0 !important;
+            gap: 8px !important;
+        }
+
+        /* Make sure hidden buttons don't take up space */
+        .past-day-display .controls .btn[style*="display: none"] {
+            display: none !important;
+            width: 0 !important;
+            height: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+        
+
+        
+        @media (max-width: 768px) {
+            
+            
+            .sidebar {
+                width: 50px;
+                padding: 10px 0;
+            }
+            
+            .main-content {
+                margin-left: 50px;
+                padding: 10px;
+            }
+            
+            .day-btn {
+                width: 30px;
+                height: 30px;
+                font-size: 0.8rem;
+            }
+            
+            .header {
+                padding: 15px 10px;
+                margin-bottom: 20px;
+            }
+            
+            .header h1 {
+                font-size: 1.6rem;
+            }
+            
+            .header .current-day {
+                font-size: 1.1rem;
+            }
+            
+            .daily-view {
+                padding: 20px;
+                min-height: 300px;
+            }
+            
+            .journal-entry {
+                font-size: 1rem;
+                line-height: 1.7;
+                padding: 15px 0;
+            }
+            
+            /* BUTTONS - FORCE GRID LAYOUT */
+            #todayControls {
+                display: grid !important;
+                grid-template-columns: 1fr 1fr !important;
+                grid-template-rows: 1fr 1fr !important;
+                gap: 10px !important;
+                margin-bottom: 15px !important;
+            }
+            
+            #todayControls .btn {
+                width: 100% !important;
+                padding: 12px 8px !important;
+                font-size: 0.85rem !important;
+                margin: 0 !important;
+                min-width: auto !important;
+            }
+            
+            #todayControls .btn.capture {
+                padding: 15px 8px !important;
+                font-size: 0.9rem !important;
+            }
+            
+            /* Force specific button order */
+            #todayControls .btn:nth-child(1) { order: 1; }
+            #todayControls .btn:nth-child(4) { order: 2; }
+            #todayControls .btn:nth-child(2) { order: 3; }
+            #todayControls .btn:nth-child(3) { order: 4; }
+
+            .past-day-display .daily-view {
+                padding: 8px !important;
+            }
+            
+            .past-day-display .journal-entry {
+                line-height: 1.2 !important;
+                font-size: 0.9rem !important;
+                padding: 3px 0 !important;
+            }
+            
+            .past-day-display .journal-entry strong {
+                margin: 3px 0 1px 0 !important;
+                font-size: 0.85rem !important;
+            }
+            
+            .past-day-display .journal-entry p {
+                margin-bottom: 3px !important;
+            }
+            
+            .past-day-display .header {
+                margin-bottom: 5px !important;
+                padding: 5px !important;
+            }
+            
+            .past-day-display .controls {
+                margin-bottom: 5px !important;
+            }
+            
+            
+            
+            .main-content:not(.past-day-display) #todayControls {
+                display: grid !important;
+                grid-template-columns: 1fr 1fr !important;
+                grid-template-rows: 1fr 1fr !important;
+                gap: 10px !important;
+                margin-bottom: 15px !important;
+            }
+            
+            /* Only apply block layout to past days */
+            .past-day-display #todayControls {
+                display: block !important;
+                grid-template-columns: none !important;
+                grid-template-rows: none !important;
+                gap: 0 !important;
+            }
+            
+            /* Ensure current day controls use full layout */
+            .main-content:not(.past-day-display) .controls {
+                justify-content: center !important;
+                gap: 10px !important;
+            }
+        }
+        
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="month-nav">
+            <button onclick="changeMonth(-1)" title="Previous Month">‹</button>
+            <div class="current-month" id="currentMonth"></div>
+            <button onclick="changeMonth(1)" title="Next Month">›</button>
+        </div>
+        
+        <div class="day-index" id="dayIndex">
+            <!-- Day buttons will be generated here -->
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="header" id="mainHeader">
+            <h1 id="headerTitle">Health Journal</h1>
+            <div class="current-day" id="currentDay"></div>
+        </div>
+
+        <div class="controls" id="todayControls">
+            <button class="btn capture" onclick="captureEntry()">📝 Add Today's Entry</button>
+            <button class="btn secondary" onclick="showWeeklySummary()">Weekly Summary</button>
+            <button class="btn secondary" onclick="showMonthlySummary()">Monthly Summary</button>
+            <button class="btn secondary" onclick="showOverallProgress()">Overall Progress</button>
+        </div>
+
+        <div class="daily-view" id="dailyView">
+            <div class="empty-state">
+                Start your day by adding your first entry above
+            </div>
+        </div>
+    </div>
+    
+    <!-- Entry Capture Modal -->
+    <div id="entryModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeEntry()">&times;</span>
+            <h3>Add Today's Entry</h3>
+            
+            <div class="photo-upload-section">
+                <h4>📸 Today's Photos</h4>
+                <div class="photo-upload-grid" id="photoGrid">
+                    <!-- Photos will be added here -->
+                </div>
+                <input type="file" id="photoInput" accept="image/*" multiple style="display: none;">
+                <button class="add-photo-btn" onclick="document.getElementById('photoInput').click()">+ Add Photos</button>
+            </div>
+            
+            <textarea id="dailyInput" placeholder="Paste your AI journal entry here..." style="width: 100%; height: 150px; margin: 15px 0; padding: 15px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 1rem;"></textarea>
+            
+            <div style="display: flex; gap: 10px;">
+                <button class="btn" onclick="saveDailyEntry()" style="flex: 1;">Save Entry</button>
+                <button class="btn secondary" onclick="closeEntry()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Modal -->
+    <div id="summaryModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeSummary()">&times;</span>
+            <div id="summaryContent"></div>
+        </div>
+    </div>
+
+    <script>
+        let currentDay = new Date().getDate();
+        let currentMonth = new Date().getMonth();
+        let currentYear = new Date().getFullYear();
+        let dailyEntries = {};
+        let tempPhotos = [];
+
+        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
+                           'July', 'August', 'September', 'October', 'November', 'December'];
+
+        // API configuration - update this for your server
+        const API_BASE = window.location.hostname === 'localhost' 
+            ? 'http://localhost:8081/api' 
+            : 'http://192.168.254.205:8081/api'; // Change this to your actual server
+        // Configuration at the top - easy to change later
+        const AI_CONFIG = {
+            name: 'Claude',
+            webUrl: 'https://claude.ai',
+            androidPackage: 'com.anthropic.claude',
+            appScheme: 'claude://'
+        };
+
+        function openAI() {
+            const isAndroid = /Android/i.test(navigator.userAgent);
+            const isFullyKiosk = /Fully Kiosk/i.test(navigator.userAgent) || window.fully;
+            
+            if (isFullyKiosk) {
+                // Try app first
+                try {
+                    if (window.fully && window.fully.startApplication) {
+                        window.fully.startApplication(AI_CONFIG.androidPackage);
+                        return true;
+                    }
+                } catch(e) { console.log('App launch failed:', e); }
+                
+                // Then just use the regular URL - let Fully's "Links to Open in Other Apps" handle it
+                try {
+                    window.open(AI_CONFIG.webUrl, '_blank');
+                    return true;
+                } catch(e) { console.log('Regular URL failed:', e); }
+            }
+            
+            if (isAndroid) {
+                // Regular Android - try app scheme first
+                try {
+                    window.open(AI_CONFIG.appScheme, '_blank');
+                } catch(e) {
+                    window.open(AI_CONFIG.webUrl, '_blank');
+                }
+            } else {
+                // Desktop
+                window.open(AI_CONFIG.webUrl, '_blank');
+            }
+            
+            return true;
+        }
+        function init() {
+            generateDayIndex();
+            updateMonthDisplay();
+            updateCurrentDayDisplay();
+            loadData();
+            selectDay(currentDay);
+            setupPhotoUpload();
+        }
+        
+
+        function setupPhotoUpload() {
+            const photoInput = document.getElementById('photoInput');
+            if (photoInput) {
+                photoInput.addEventListener('change', handlePhotoUpload);
+            }
+        }
+
+        function handlePhotoUpload(event) {
+            const files = event.target.files;
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    tempPhotos.push({
+                        data: e.target.result,
+                        name: file.name
+                    });
+                    updatePhotoGrid();
+                };
+                reader.readAsDataURL(file);
+            }
+            event.target.value = '';
+        }
+
+        function updatePhotoGrid() {
+            const grid = document.getElementById('photoGrid');
+            if (!grid) return;
+            
+            grid.innerHTML = '';
+            tempPhotos.forEach((photo, index) => {
+                const photoItem = document.createElement('div');
+                photoItem.className = 'photo-item';
+                photoItem.innerHTML = `
+                    <img src="${photo.data}" alt="${photo.name}">
+                    <button class="remove-photo" onclick="removePhoto(${index})">×</button>
+                `;
+                grid.appendChild(photoItem);
+            });
+        }
+
+        function removePhoto(index) {
+            tempPhotos.splice(index, 1);
+            updatePhotoGrid();
+        }
+
+        function updateMonthDisplay() {
+            document.getElementById('currentMonth').innerHTML = `${monthNames[currentMonth]}<br>${currentYear}`;
+        }
+
+        function updateCurrentDayDisplay() {
+            document.getElementById('currentDay').textContent = `${monthNames[currentMonth]} ${currentDay}, ${currentYear}`;
+        }
+
+        function changeMonth(direction) {
+            currentMonth += direction;
+            if (currentMonth > 11) {
+                currentMonth = 0;
+                currentYear++;
+            } else if (currentMonth < 0) {
+                currentMonth = 11;
+                currentYear--;
+            }
+            
+            generateDayIndex();
+            updateMonthDisplay();
+            updateDayButtons();
+            
+            const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+            if (currentDay > daysInMonth) {
+                currentDay = 1;
+            }
+            selectDay(currentDay);
+        }
+
+        // Add this function and call it after generating day buttons
+
+        function markCurrentDay() {
+            const today = new Date();
+            const todayYear = today.getFullYear();
+            const todayMonth = today.getMonth();
+            const todayDay = today.getDate();
+            
+            // Only mark current day if we're viewing the current month/year
+            if (currentYear === todayYear && currentMonth === todayMonth) {
+                const todayBtn = document.getElementById(`day-${todayDay}`);
+                if (todayBtn) {
+                    todayBtn.classList.add('current-day');
+                }
+            }
+        }
+
+        // Update the generateDayIndex function to call markCurrentDay
+        function generateDayIndex() {
+            const dayIndex = document.getElementById('dayIndex');
+            const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+            
+            dayIndex.innerHTML = '';
+            for (let i = 1; i <= daysInMonth; i++) {
+                const btn = document.createElement('button');
+                btn.className = 'day-btn';
+                btn.textContent = i;
+                btn.onclick = () => selectDay(i);
+                btn.id = `day-${i}`;
+                btn.title = `${monthNames[currentMonth]} ${i}`;
+                dayIndex.appendChild(btn);
+            }
+            
+            // Mark the current day
+            markCurrentDay();
+        }
+
+        function captureEntry() {
+            const dayKey = `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-${currentDay.toString().padStart(2, '0')}`;
+            const entry = dailyEntries[dayKey];
+            
+            tempPhotos = entry && entry.photos ? [...entry.photos] : [];
+            updatePhotoGrid();
+            
+            document.getElementById('dailyInput').value = entry ? entry.notes : '';
+            document.getElementById('entryModal').style.display = 'block';
+        }
+
+        function closeEntry() {
+            tempPhotos = [];
+            document.getElementById('entryModal').style.display = 'none';
+        }
+
+        function selectDay(day) {
+            document.querySelectorAll('.day-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.getElementById(`day-${day}`).classList.add('active');
+            
+            currentDay = day;
+            updateCurrentDayDisplay();
+            updateUIForDayType();
+            
+            // Use consistent date key format
+            const dayKey = `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-${currentDay.toString().padStart(2, '0')}`;
+            const entry = dailyEntries[dayKey];
+            
+            console.log(`Selected day ${day}, key: ${dayKey}, entry exists:`, !!entry);
+            
+            displayDailyView(entry);
+        }
+
+        // Debug function to check all entry keys - add temporarily
+        function debugEntryKeys() {
+            console.log('All entry keys:', Object.keys(dailyEntries));
+            console.log('Current month/year:', currentMonth + 1, currentYear);
+            
+            // Check specific days
+            for (let day = 1; day <= 31; day++) {
+                const key = `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+                if (dailyEntries[key]) {
+                    console.log(`Day ${day} has entry with key: ${key}`);
+                }
+            }
+        }
+        // Replace the updateUIForDayType function with this corrected version
+
+        function updateUIForDayType() {
+            const isToday = isCurrentDay();
+            const header = document.getElementById('mainHeader');
+            const headerTitle = document.getElementById('headerTitle');
+            const todayControls = document.getElementById('todayControls');
+            const addButton = todayControls.querySelector('.btn.capture');
+            
+            // Reset all button styles first
+            Array.from(todayControls.children).forEach(btn => {
+                btn.style.display = '';
+                btn.style.width = '';
+                btn.style.height = '';
+                btn.style.margin = '';
+                btn.style.padding = '';
+            });
+            
+            if (isToday) {
+                header.classList.add('today-mode');
+                headerTitle.textContent = "Today";
+                headerTitle.style.display = '';  // Make sure title is visible
+                addButton.textContent = "📝 Add Today's Entry";
+                
+                // Replace Overall Progress button with Copy Template
+                const buttons = Array.from(todayControls.children);
+                if (buttons[3]) { // Overall Progress button (4th button)
+                    buttons[3].textContent = "🤖 Copy To AI";
+                    buttons[3].onclick = copyTemplate;
+                }
+                
+                // Show all buttons for today
+                Array.from(todayControls.children).forEach(btn => {
+                    btn.style.display = 'block';
+                });
+                todayControls.style.display = 'flex';
+                
+                // Reset controls styling for today
+                todayControls.style.justifyContent = '';
+                todayControls.style.gap = '';
+                
+            } else {
+                header.classList.remove('today-mode');
+                headerTitle.style.display = 'none';
+                addButton.textContent = `📝 Add Entry for ${monthNames[currentMonth]} ${currentDay}`;
+                
+                // Show only Add Entry button for past days
+                Array.from(todayControls.children).forEach((btn, index) => {
+                    if (index === 0) {
+                        btn.style.display = 'block';
+                    } else {
+                        btn.style.display = 'none';
+                        btn.style.width = '0';
+                        btn.style.height = '0';
+                        btn.style.margin = '0';
+                        btn.style.padding = '0';
+                    }
+                });
+                todayControls.style.display = 'flex';
+            }
+        }
+
+        async function saveDailyEntry() {
+            const dayKey = `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-${currentDay.toString().padStart(2, '0')}`;
+            const notes = document.getElementById('dailyInput').value;
+            
+            try {
+                const response = await fetch(`${API_BASE}/entries/${dayKey}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        notes: notes,
+                        photos: tempPhotos
+                    })
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    
+                    if (result.message === 'Entry deleted') {
+                        delete dailyEntries[dayKey];
+                    } else {
+                        dailyEntries[dayKey] = result.entry;
+                    }
+                    
+                    updateDayButtons();
+                    displayDailyView(dailyEntries[dayKey]);
+                    closeEntry();
+                    console.log('Entry saved successfully');
+                } else {
+                    console.error('Failed to save entry');
+                    alert('Failed to save entry. Please try again.');
+                }
+            } catch (e) {
+                console.error('Failed to connect to API:', e);
+                alert('Failed to connect to server. Please check your connection.');
+            }
+        }
+
+        function displayDailyView(entry) {
+            const dailyView = document.getElementById('dailyView');
+            const isToday = isCurrentDay();
+            const isMobile = window.innerWidth <= 768;
+            
+            // Add class for past days to enable compact styling
+            const mainContent = document.querySelector('.main-content');
+            if (isToday) {
+                mainContent.classList.remove('past-day-display');
+            } else {
+                mainContent.classList.add('past-day-display');
+            }
+            
+            if (isToday && !entry) {
+                let content = '';
+                
+                if (isMobile) {
+                    content = `
+                        <div id="overallProgressSection">
+                            <div id="overallProgressData">Loading overall progress...</div>
+                        </div>
+                    `;
+                } else {
+                    content = `
+                        <div id="overallProgressSection">
+                            <div id="overallProgressData">Loading overall progress...</div>
+                        </div>
+                    `;
+                }
+                
+                dailyView.innerHTML = content;
+                loadOverallProgress();
+            }
+            else if (entry) {
+                let content = '';
+                
+                if (isMobile) {
+                    // Compact summary for mobile past days
+                    let summaryContent = '';
+                    if (entry.healthData && Object.values(entry.healthData).some(val => val > 0 || val !== null)) {
+                        const data = entry.healthData;
+                        summaryContent = `
+                            <div class="daily-summary" style="background: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 8px; padding: ${isToday ? '15px' : '10px'}; margin-bottom: ${isToday ? '20px' : '10px'};">
+                                <h4 style="margin: 0 0 8px 0; color: #0369a1; font-size: 0.95rem;">📊 Daily Summary</h4>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.85rem;">
+                                    ${data.calories ? `<div><strong>Calories:</strong> ${data.calories}</div>` : ''}
+                                    ${data.exercise ? `<div><strong>Exercise:</strong> ${data.exercise} min</div>` : ''}
+                                    ${data.weight ? `<div><strong>Weight:</strong> ${data.weight} lbs</div>` : ''}
+                                    ${data.fastingHours ? `<div><strong>Fasting:</strong> ${data.fastingHours} hrs</div>` : ''}
+                                </div>
+                            </div>
+                        `;
+                    }
+
+                    let formattedNotes = entry.notes ? entry.notes
+                        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+                        .replace(/(\d{1,2}:\d{2}\s*[AP]M)/g, '<br><strong>$1</strong>')
+                        .replace(/Daily Summary:.*$/gm, '')
+                        .replace(/Date:.*$/gm, '')
+                        .replace(/\n\n+/g, '<br><br>')
+                        .replace(/\n/g, '<br>') : 'No notes provided.';
+                    
+                    content = `
+                        ${summaryContent}
+                        <div class="journal-entry" style="padding: ${isToday ? '15px 0' : '10px 0'};">${formattedNotes}</div>
+                        <div class="photo-gallery" id="photoGallery">
+                            ${entry.photos && entry.photos.length > 0 ? 
+                                entry.photos.map(photo => `<div class="photo-item" onclick="viewPhoto('${photo.data}')"><img src="${photo.data}" alt="${photo.name}"></div>`).join('') 
+                                : ''}
+                        </div>
+                    `;
+                } else {
+                    // Desktop logic (same as before but with compact adjustments)
+                    let summaryContent = '';
+                    if (entry.healthData && Object.values(entry.healthData).some(val => val > 0 || val !== null)) {
+                        const data = entry.healthData;
+                        summaryContent = `
+                            <div style="background: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+                                <h4 style="margin: 0 0 10px 0; color: #0369a1;">📊 Daily Summary</h4>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.9rem;">
+                                    ${data.calories ? `<div><strong>Calories:</strong> ${data.calories}</div>` : ''}
+                                    ${data.exercise ? `<div><strong>Exercise:</strong> ${data.exercise} min</div>` : ''}
+                                    ${data.weight ? `<div><strong>Weight:</strong> ${data.weight} lbs</div>` : ''}
+                                    ${data.fastingHours ? `<div><strong>Fasting:</strong> ${data.fastingHours} hrs</div>` : ''}
+                                </div>
+                            </div>
+                        `;
+                    }
+
+                    let formattedNotes = entry.notes ? entry.notes
+                        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+                        .replace(/(\d{1,2}:\d{2}\s*[AP]M)/g, '<br><strong>$1</strong>')
+                        .replace(/Daily Summary:.*$/gm, '')
+                        .replace(/Date:.*$/gm, '')
+                        .replace(/\n\n+/g, '<br><br>')
+                        .replace(/\n/g, '<br>') : 'No notes provided.';
+                    
+                    content = `
+                        ${summaryContent}
+                        <div class="journal-entry">${formattedNotes}</div>
+                        <div class="photo-gallery" id="photoGallery">
+                            ${entry.photos && entry.photos.length > 0 ? 
+                                entry.photos.map(photo => `<div class="photo-item" onclick="viewPhoto('${photo.data}')"><img src="${photo.data}" alt="${photo.name}"></div>`).join('') 
+                                : ''}
+                        </div>
+                    `;
+                }
+                
+                dailyView.innerHTML = content;
+            } else {
+                dailyView.innerHTML = '<div class="empty-state">No entry for this day. Click "Add Entry" to start.</div>';
+            }
+        }
+        function copyTemplate() {
+            const todayDate = new Date().toLocaleDateString('en-US', { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            });
+            
+            const template = `# Daily Health Journal Template
+            Date: ${todayDate}
+            Instructions for AI:
+            - Help me track my daily health journey with encouragement
+            - Provide calorie estimates and organize entries chronologically
+            - Include nutritional breakdown (protein, fat, carbs, fiber, sugar) for ALL foods when possible
+            - For branded products, look up actual nutrition facts when available
+            - For basic foods (chicken, broccoli, rice, etc.), estimate macros based on standard USDA data
+            - Assume typical serving sizes unless specified (e.g., 4oz chicken breast, 1 cup broccoli)
+            - Calculate fasting windows and daily totals when context provided
+            - Give brief, supportive feedback or insights after each entry
+            - If timing/duration unclear, make reasonable assumptions
+            Best Practices (reminder to self):
+            - Include specific times when possible (8:15 AM vs "morning")
+            - State exercise durations explicitly ("3.5 minutes" not "short workout")
+            - Mention last meal for fasting context when relevant
+            - Include metrics like heart rate, weight when available
+            - Be specific about brands/products when possible for better nutrition data
+            - Include cooking methods when relevant (grilled vs fried chicken)
+            - Mention portion sizes when known (6oz, 1 cup, etc.)
+            Today's Entry:
+            [Tell me about meals, exercise, weight, how you're feeling, etc.]
+            Please format as:
+            **Time** - Activity/meal (~calories, protein/fat/carbs/fiber when available) - Brief encouraging note
+            Examples: 
+            **10:00 AM** - Trader Joe's Chocolate Chip Protein Bar (~190 cal, 20g protein, 7g fat, 15g carbs, 10g fiber) - Great protein boost!
+            **12:30 PM** - Grilled chicken breast & steamed broccoli (~300 cal, 35g protein, 3g fat, 8g carbs, 4g fiber) - Perfect lean meal!
+            Daily Summary:
+            Total calories: ~[number] | Exercise: [minutes] | Fasting window: [hours] | Protein: ~[grams] | Fiber: ~[grams]
+            [Supportive wrap-up comment about the day]`;
+
+            // Rest of the function stays the same...
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(template).then(() => {
+                    try {
+                    openAI();
+                    showCopyFeedback(`Template copied! Opening ${AI_CONFIG.name}...`);
+                } catch(e) {
+                    showCopyFeedback(`Template copied! Manually open: ${AI_CONFIG.webUrl}`);
+                }
+                }).catch(() => {
+                    fallbackCopyText(template);
+                });
+            } else {
+                fallbackCopyText(template);
+            }
+        }
+        function fallbackCopyText(text) {
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            textArea.style.position = 'fixed';
+            textArea.style.left = '-999999px';
+            textArea.style.top = '-999999px';
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            
+            try {
+                document.execCommand('copy');
+                
+                try {
+                    openAI();
+                    showCopyFeedback(`Template copied! Opening ${AI_CONFIG.name}...`);
+                } catch(e) {
+                    showCopyFeedback(`Template copied! Manually open: ${AI_CONFIG.webUrl}`);
+                }
+            } catch (err) {
+                console.error('Copy failed:', err);
+                alert('Copy failed. Please select and copy the template manually.');
+            }
+            
+            document.body.removeChild(textArea);
+        }
+
+        function showCopyFeedback(message = `Template copied! Opening ${AI_CONFIG.name}...`) {
+            const toast = document.createElement('div');
+            toast.textContent = message;
+            toast.style.cssText = `
+                position: fixed; top: 20px; right: 20px; 
+                background: #48bb78; color: white; padding: 12px 20px; 
+                border-radius: 8px; font-size: 0.9rem; z-index: 1000;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            `;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    document.body.removeChild(toast);
+                }
+            }, 3000);
+        }
+        function viewPhoto(photoData) {
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                background: rgba(0,0,0,0.8); z-index: 2000; display: flex;
+                align-items: center; justify-content: center; cursor: pointer;
+            `;
+            
+            const img = document.createElement('img');
+            img.src = photoData;
+            img.style.cssText = 'max-width: 90%; max-height: 90%; border-radius: 10px;';
+            
+            modal.appendChild(img);
+            modal.onclick = () => document.body.removeChild(modal);
+            document.body.appendChild(modal);
+        }
+        
+        function isCurrentDay() {
+            const today = new Date();
+            return currentYear === today.getFullYear() && 
+                   currentMonth === today.getMonth() && 
+                   currentDay === today.getDate();
+        }
+
+        async function showWeeklySummary() {
+            const currentDate = `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-${currentDay.toString().padStart(2, '0')}`;
+            
+            try {
+                const response = await fetch(`${API_BASE}/summary/week/${currentDate}`);
+                const content = document.getElementById('summaryContent');
+                
+                if (response.ok) {
+                    const summary = await response.json();
+                    
+                    content.innerHTML = `
+                        <h2>Weekly Summary</h2>
+                        <div class="stat">
+                            <span class="stat-label">Days Tracked:</span>
+                            <span class="stat-value">${summary.daysTracked}</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">Average Calories:</span>
+                            <span class="stat-value">${summary.avgCalories}</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">Total Exercise:</span>
+                            <span class="stat-value">${summary.totalExercise} minutes</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">Average Fasting:</span>
+                            <span class="stat-value">${summary.avgFasting} hours</span>
+                        </div>
+                        ${summary.weightChange !== null ? `
+                        <div class="stat">
+                            <span class="stat-label">Weight Change:</span>
+                            <span class="stat-value">${summary.weightChange > 0 ? '+' : ''}${summary.weightChange} lbs</span>
+                        </div>
+                        ` : ''}
+                        ${summary.currentWeight !== null ? `
+                        <div class="stat">
+                            <span class="stat-label">Current Weight:</span>
+                            <span class="stat-value">${summary.currentWeight} lbs</span>
+                        </div>
+                        ` : ''}
+                    `;
+                } else {
+                    content.innerHTML = '<h2>Weekly Summary</h2><p>Failed to load summary data</p>';
+                }
+                
+                document.getElementById('summaryModal').style.display = 'block';
+            } catch (e) {
+                console.error('Failed to load weekly summary:', e);
+                const content = document.getElementById('summaryContent');
+                content.innerHTML = '<h2>Weekly Summary</h2><p>Failed to connect to server</p>';
+                document.getElementById('summaryModal').style.display = 'block';
+            }
+        }
+
+        async function showMonthlySummary() {
+            const content = document.getElementById('summaryContent');
+            
+            // Add month picker interface
+            content.innerHTML = `
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+                    <button onclick="changeReportMonth(-1)" style="background: #667eea; color: white; border: none; border-radius: 6px; padding: 8px 12px; cursor: pointer;">‹</button>
+                    <h2 id="reportMonthTitle">Monthly Summary - ${monthNames[currentMonth]} ${currentYear}</h2>
+                    <button onclick="changeReportMonth(1)" style="background: #667eea; color: white; border: none; border-radius: 6px; padding: 8px 12px; cursor: pointer;">›</button>
+                </div>
+                <div id="monthlyData">Loading...</div>
+            `;
+            
+            document.getElementById('summaryModal').style.display = 'block';
+            
+            // Initialize with current month
+            window.reportMonth = currentMonth + 1;
+            window.reportYear = currentYear;
+            loadMonthlyData();
+        }
+
+        function changeReportMonth(direction) {
+            if (direction > 0) {
+                window.reportMonth++;
+                if (window.reportMonth > 12) {
+                    window.reportMonth = 1;
+                    window.reportYear++;
+                }
+            } else {
+                window.reportMonth--;
+                if (window.reportMonth < 1) {
+                    window.reportMonth = 12;
+                    window.reportYear--;
+                }
+            }
+            
+            document.getElementById('reportMonthTitle').textContent = 
+                `Monthly Summary - ${monthNames[window.reportMonth - 1]} ${window.reportYear}`;
+            
+            loadMonthlyData();
+        }
+
+        async function loadMonthlyData() {
+            try {
+                const response = await fetch(`${API_BASE}/summary/month/${window.reportYear}/${window.reportMonth}`);
+                const dataDiv = document.getElementById('monthlyData');
+                
+                if (response.ok) {
+                    const summary = await response.json();
+                    
+                    dataDiv.innerHTML = `
+                        <div class="stat">
+                            <span class="stat-label">Days Tracked:</span>
+                            <span class="stat-value">${summary.daysTracked}</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">Average Calories:</span>
+                            <span class="stat-value">${summary.avgCalories}</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">Total Exercise:</span>
+                            <span class="stat-value">${summary.totalExercise} minutes</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">Average Fasting:</span>
+                            <span class="stat-value">${summary.avgFasting} hours</span>
+                        </div>
+                        ${summary.weightChange !== null ? `
+                        <div class="stat">
+                            <span class="stat-label">Weight Change:</span>
+                            <span class="stat-value">${summary.weightChange > 0 ? '+' : ''}${summary.weightChange} lbs</span>
+                        </div>
+                        ` : ''}
+                        ${summary.currentWeight !== null ? `
+                        <div class="stat">
+                            <span class="stat-label">Latest Weight:</span>
+                            <span class="stat-value">${summary.currentWeight} lbs</span>
+                        </div>
+                        ` : ''}
+                    `;
+                } else {
+                    dataDiv.innerHTML = '<p>No data for this month</p>';
+                }
+            } catch (e) {
+                document.getElementById('monthlyData').innerHTML = '<p>Failed to load data</p>';
+            }
+        }
+
+        function closeSummary() {
+            document.getElementById('summaryModal').style.display = 'none';
+        }
+
+        function getWeekEntries() {
+            const entries = [];
+            const today = new Date(currentYear, currentMonth, currentDay);
+            const dayOfWeek = today.getDay();
+            const startOfWeek = new Date(today);
+            startOfWeek.setDate(today.getDate() - dayOfWeek);
+            
+            for (let i = 0; i < 7; i++) {
+                const date = new Date(startOfWeek);
+                date.setDate(startOfWeek.getDate() + i);
+                const key = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
+                if (dailyEntries[key]) {
+                    entries.push(dailyEntries[key]);
+                }
+            }
+            
+            return entries;
+        }
+
+        function getMonthEntries() {
+            const entries = [];
+            const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+            
+            for (let day = 1; day <= daysInMonth; day++) {
+                const key = `${currentYear}-${currentMonth + 1}-${day}`;
+                if (dailyEntries[key]) {
+                    entries.push(dailyEntries[key]);
+                }
+            }
+            
+            return entries;
+        }
+
+        function updateDayButtons() {
+            document.querySelectorAll('.day-btn').forEach(btn => {
+                btn.classList.remove('has-data', 'has-photos');
+                const day = parseInt(btn.textContent);
+                
+                // Create proper date key format to match how entries are stored: YYYY-MM-DD
+                const key = `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+                
+                console.log(`Checking day ${day}, key: ${key}, has entry:`, !!dailyEntries[key]);
+                
+                if (dailyEntries[key]) {
+                    btn.classList.add('has-data');
+                    if (dailyEntries[key].photos && dailyEntries[key].photos.length > 0) {
+                        btn.classList.add('has-photos');
+                    }
+                }
+            });
+            
+            // Re-mark the current day after updating data classes
+            markCurrentDay();
+        }
+       async function loadOverallProgress() {
+            try {
+                const response = await fetch(`${API_BASE}/summary/overall`);
+                const dataDiv = document.getElementById('overallProgressData');
+                
+                if (response.ok) {
+                    const summary = await response.json();
+                    
+                    if (summary.message) {
+                        dataDiv.innerHTML = `<p style="text-align: center; color: #666;">${summary.message}</p>`;
+                    } else {
+                        dataDiv.innerHTML = `
+                            <div style="background: rgba(255, 255, 255, 0.95); border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                                <h3 style="text-align: center; margin-bottom: 15px; color: #2d3748;">📈 Overall Health Progress</h3>
+                                <div class="stat">
+                                    <span class="stat-label">Start Date:</span>
+                                    <span class="stat-value">${summary.startDate}</span>
+                                </div>
+                                <div class="stat">
+                                    <span class="stat-label">Last Entry:</span>
+                                    <span class="stat-value">${summary.currentDate}</span>
+                                </div>
+                                <div class="stat">
+                                    <span class="stat-label">Days Tracked:</span>
+                                    <span class="stat-value">${summary.daysBetween} days</span>
+                                </div>
+                                <div class="stat">
+                                    <span class="stat-label">Starting Weight:</span>
+                                    <span class="stat-value">${summary.startWeight} lbs</span>
+                                </div>
+                                <div class="stat">
+                                    <span class="stat-label">Last Weight:</span>
+                                    <span class="stat-value">${summary.currentWeight} lbs</span>
+                                </div>
+                                <div class="stat" style="border-top: 2px solid #48bb78; padding-top: 15px; margin-top: 15px;">
+                                    <span class="stat-label"><strong>Total Weight Lost:</strong></span>
+                                    <span class="stat-value" style="color: #48bb78; font-size: 1.2rem;"><strong>${summary.totalWeightLost} lbs</strong></span>
+                                </div>
+                                <div class="stat">
+                                    <span class="stat-label">Total Weigh-ins:</span>
+                                    <span class="stat-value">${summary.totalWeighIns}</span>
+                                </div>
+                            </div>
+                        `;
+                    }
+                } else {
+                    dataDiv.innerHTML = '<p style="text-align: center; color: #999;">Failed to load progress data</p>';
+                }
+            } catch (e) {
+                document.getElementById('overallProgressData').innerHTML = '<p style="text-align: center; color: #999;">Failed to connect to server</p>';
+            }
+        }
+
+       async function saveData() {
+           // This function is no longer needed - saving happens per entry
+       }
+
+       async function loadData() {
+           try {
+               const response = await fetch(`${API_BASE}/entries`);
+               if (response.ok) {
+                   dailyEntries = await response.json();
+                   console.log('Loaded entries from API:', Object.keys(dailyEntries).length);
+               } else {
+                   console.error('Failed to load data from API');
+                   dailyEntries = {};
+               }
+           } catch (e) {
+               console.error('Failed to connect to API:', e);
+               dailyEntries = {};
+           }
+           updateDayButtons();
+       }
+        
+       window.onclick = function(event) {
+           const summaryModal = document.getElementById('summaryModal');
+           const entryModal = document.getElementById('entryModal');
+           if (event.target == summaryModal) {
+               summaryModal.style.display = 'none';
+           }
+           if (event.target == entryModal) {
+               entryModal.style.display = 'none';
+               tempPhotos = [];
+           }
+       }
+       // Update the init function to be async:
+        async function init() {
+            generateDayIndex();
+            updateMonthDisplay();
+            updateCurrentDayDisplay();
+            await loadData(); // Wait for data to load
+            selectDay(currentDay);
+            setupPhotoUpload();
+        }
+
+        // Make window.onload async:
+        window.onload = async function() {
+            console.log('Page loaded, initializing...');
+            await init();
+        };
+       
+   </script>
+</body>
+</html>

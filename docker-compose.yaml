@@ -1,24 +1,20 @@
-version: '3.8'
 services:
-  backend:
-    build:
-      context: ./server
-      dockerfile: Dockerfile
+  health-journal-api:
+    build: ./backend
     ports:
-      - "5000:5000"
+      - "3001:3001"
     volumes:
-      - ./server/db.sqlite:/app/db.sqlite
-      - ./server/uploads:/app/uploads
+      - /home/joe/config/health-journal:/app/data
+      - /home/joe/config/health-journal/uploads:/app/uploads
     environment:
       - NODE_ENV=production
+      - PORT=3001
+    restart: unless-stopped
 
-  frontend:
-    build:
-      context: ./client
-      dockerfile: Dockerfile
+  health-journal-web:
+    image: nginx:alpine
     ports:
-      - "3000:3000"
-    environment:
-      - NODE_ENV=production
-    depends_on:
-      - backend
+      - "8081:80"
+    volumes:
+      - ./frontend:/usr/share/nginx/html
+    restart: unless-stopped
