@@ -53,8 +53,10 @@ No form-filling. No obsessive tracking. Just sustainable health awareness.
 
 ## Philosophy
 Approximately right beats precisely wrong. Build sustainable awareness, not tracking addiction.
-![1000011908](https://github.com/user-attachments/assets/6a0d4052-b6d3-4628-94e5-9008487ced67)
-![1000011906](https://github.com/user-attachments/assets/4fd95de0-2cbf-4834-888f-c09dd74e9ebd)
-![1000011912](https://github.com/user-attachments/assets/c0a89e3e-2d8f-4009-a34d-64eb9c924abc)
-![1000011911](https://github.com/user-attachments/assets/5ccff24a-b88b-417b-82cd-019513606076)
-![1000011909](https://github.com/user-attachments/assets/7c9c7a57-b5a0-42e1-8f08-257305ee8258)
+## Screenshots
+
+<img src="https://github.com/user-attachments/assets/6a0d4052-b6d3-4628-94e5-9008487ced67" width="300" alt="trAIn Interface">
+<img src="https://github.com/user-attachments/assets/4fd95de0-2cbf-4833-888f-c09dd74e9ebd" width="300" alt="Daily Entry View">
+<img src="https://github.com/user-attachments/assets/c0a89e3e-2d8f-4009-a34d-64eb9c924abc" width="300" alt="Progress Tracking">
+<img src="https://github.com/user-attachments/assets/7c9c7a57-b5a0-42e1-8f08-257305ee8258" width="300" alt="AI Template">
+<img src="https://github.com/user-attachments/assets/5ccff24a-b88b-417b-82cd-019513606076" width="300" alt="Summary View">
