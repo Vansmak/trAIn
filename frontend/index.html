@@ -231,8 +231,8 @@
         
         .btn.capture {
             background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
-            font-size: 1.1rem;
-            padding: 15px 30px;
+            
+            
         }
         
         .btn.capture:hover {
@@ -582,16 +582,13 @@
                 min-width: auto !important;
             }
             
-            #todayControls .btn.capture {
-                padding: 15px 8px !important;
-                font-size: 0.9rem !important;
-            }
+            
             
             /* Force specific button order */
-            #todayControls .btn:nth-child(1) { order: 1; }
-            #todayControls .btn:nth-child(4) { order: 2; }
-            #todayControls .btn:nth-child(2) { order: 3; }
-            #todayControls .btn:nth-child(3) { order: 4; }
+            #todayControls .btn:nth-child(1) { order: 1; }  /* Copy To AI */
+            #todayControls .btn:nth-child(2) { order: 2; }  /* Add Entry */
+            #todayControls .btn:nth-child(3) { order: 3; }  /* Weekly */
+            #todayControls .btn:nth-child(4) { order: 4; }  /* Monthly */
 
             .past-day-display .daily-view {
                 padding: 8px !important;
@@ -668,10 +665,10 @@
         </div>
 
         <div class="controls" id="todayControls">
+            <button class="btn secondary" onclick="copyTemplate()">🤖 Copy To AI</button>
             <button class="btn capture" onclick="captureEntry()">📝 Add Today's Entry</button>
             <button class="btn secondary" onclick="showWeeklySummary()">Weekly Summary</button>
             <button class="btn secondary" onclick="showMonthlySummary()">Monthly Summary</button>
-            <button class="btn secondary" onclick="showOverallProgress()">Overall Progress</button>
         </div>
 
         <div class="daily-view" id="dailyView">
@@ -696,7 +693,7 @@
                 <button class="add-photo-btn" onclick="document.getElementById('photoInput').click()">+ Add Photos</button>
             </div>
             
-            <textarea id="dailyInput" placeholder="Paste your AI journal entry here..." style="width: 100%; height: 150px; margin: 15px 0; padding: 15px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 1rem;"></textarea>
+            <textarea id="dailyInput" placeholder="Paste your AI journal entry here..." ></textarea>
             
             <div style="display: flex; gap: 10px;">
                 <button class="btn" onclick="saveDailyEntry()" style="flex: 1;">Save Entry</button>
@@ -960,13 +957,13 @@
                 header.classList.add('today-mode');
                 headerTitle.textContent = "Today";
                 headerTitle.style.display = '';  // Make sure title is visible
-                addButton.textContent = "📝 Add Today's Entry";
+                addButton.textContent = "📝 Paste AI";
                 
                 // Replace Overall Progress button with Copy Template
                 const buttons = Array.from(todayControls.children);
-                if (buttons[3]) { // Overall Progress button (4th button)
-                    buttons[3].textContent = "🤖 Copy To AI";
-                    buttons[3].onclick = copyTemplate;
+                if (buttons[0]) { // Prompt AI button (1st button)
+                    buttons[0].textContent = "🤖 Prompt AI";
+                    buttons[0].onclick = copyTemplate;
                 }
                 
                 // Show all buttons for today
@@ -982,11 +979,11 @@
             } else {
                 header.classList.remove('today-mode');
                 headerTitle.style.display = 'none';
-                addButton.textContent = `📝 Add Entry for ${monthNames[currentMonth]} ${currentDay}`;
+                addButton.textContent = `📝 Edit Entry for ${monthNames[currentMonth]} ${currentDay}`;
                 
                 // Show only Add Entry button for past days
                 Array.from(todayControls.children).forEach((btn, index) => {
-                    if (index === 0) {
+                    if (index === 1) {
                         btn.style.display = 'block';
                     } else {
                         btn.style.display = 'none';
