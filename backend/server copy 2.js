@@ -25,7 +25,6 @@ const db = new sqlite3.Database('./data/health-journal.db');
 
 // Initialize database
 db.serialize(() => {
-  // Keep your existing entries table - DON'T TOUCH THIS
   db.run(`CREATE TABLE IF NOT EXISTS entries (
     id TEXT PRIMARY KEY,
     date TEXT UNIQUE,
@@ -35,31 +34,25 @@ db.serialize(() => {
     timestamp TEXT
   )`);
   
-  // Drop and recreate the user_profile table to fix structure
-  //db.run(`DROP TABLE IF EXISTS user_profile`);
-  
-  // Create the user_profile table with ALL the columns
-  db.run(`CREATE TABLE user_profile (
+  // Add user profile table
+  db.run(`CREATE TABLE IF NOT EXISTS user_profile (
     id INTEGER PRIMARY KEY CHECK (id = 1),
-    date_of_birth TEXT,
+    age INTEGER,
     sex TEXT,
     height_feet INTEGER,
     height_inches INTEGER,
-    height_cm REAL,
-    weight_lbs REAL,
-    weight_kg REAL,
-    units TEXT DEFAULT 'imperial',
+    weight REAL,
     activity_level TEXT,
     bmr REAL,
     tdee REAL,
     calorie_target REAL,
-    custom_template TEXT, 
     updated_at TEXT
   )`);
 });
 
 // BMR calculation using Mifflin-St Jeor equation
 function calculateBMR(age, sex, heightInches, weightLbs) {
+  // Convert to metric
   const weightKg = weightLbs * 0.453592;
   const heightCm = heightInches * 2.54;
   
@@ -92,36 +85,16 @@ function parseHealthData(entryText) {
     firstMealTime: null
   };
 
-  // Extract calories - handle multiple formats
-  const caloriesPatterns = [
-    /Total calories consumed:.*?~?([\d,]+)/i,
-    /Total calories:.*?~?([\d,]+)/i,
-    /Net calories:.*?~?([\d,]+)/i,
-    /Calories:.*?~?([\d,]+)/i
-  ];
-
-  for (const pattern of caloriesPatterns) {
-    const match = entryText.match(pattern);
-    if (match) {
-      data.calories = parseInt(match[1].replace(/,/g, ''));
-      break;
-    }
+  // Extract calories - handle commas in numbers
+  const caloriesMatch = entryText.match(/Total calories:.*?~?([\d,]+)/i);
+  if (caloriesMatch) {
+    data.calories = parseInt(caloriesMatch[1].replace(/,/g, ''));
   }
 
-  // Extract exercise minutes - handle multiple formats
-  const exercisePatterns = [
-    /Exercise:.*?(\d+)\+?\s*min(?:utes)?/i,
-    /Total.*?exercise.*?(\d+)\+?\s*min(?:utes)?/i,
-    /(\d+)\+?\s*min(?:utes)?\s*total/i,
-    /Exercise.*?(\d+)\+?\s*minutes?\s*total/i
-  ];
-
-  for (const pattern of exercisePatterns) {
-    const match = entryText.match(pattern);
-    if (match) {
-      data.exercise = parseInt(match[1]);
-      break;
-    }
+  // Extract exercise minutes
+  const exerciseMatch = entryText.match(/Exercise:.*?(\d+)\s*min/i);
+  if (exerciseMatch) {
+    data.exercise = parseInt(exerciseMatch[1]);
   }
 
   // Extract weight - more flexible patterns
@@ -140,7 +113,7 @@ function parseHealthData(entryText) {
     }
   }
 
-  // Extract fasting hours
+  // First try to find explicit fasting window
   const fastingMatch = entryText.match(/Fasting window:.*?([\d.]+)\s*hours?/i);
   if (fastingMatch) {
     data.fastingHours = parseFloat(fastingMatch[1]);
@@ -148,7 +121,7 @@ function parseHealthData(entryText) {
 
   // Extract meal times for cross-day fasting calculation
   const timePattern = /\*\*(\d{1,2}:\d{2}\s*[AP]M)\*\*\s*-\s*([^\n]+)/g;
-
+  
   const timedEntries = [];
   let match;
   while ((match = timePattern.exec(entryText)) !== null) {
@@ -164,8 +137,8 @@ function parseHealthData(entryText) {
     
     const breaksFast = calorieCount > 20 || 
       (!fastingFriendly.some(item => content.includes(item)) && 
-      !content.includes('~5 cal') && 
-      !content.includes('0 cal'));
+       !content.includes('~5 cal') && 
+       !content.includes('0 cal'));
     
     timedEntries.push({
       time: time,
@@ -173,9 +146,9 @@ function parseHealthData(entryText) {
       breaksFast: breaksFast
     });
   }
-
+  
   const fastBreakingMeals = timedEntries.filter(entry => entry.breaksFast);
-
+  
   if (fastBreakingMeals.length > 0) {
     const convertTo24Hour = (timeStr) => {
       const [time, period] = timeStr.split(/\s*([AP]M)/i);
@@ -200,96 +173,139 @@ function parseHealthData(entryText) {
   }
 
   console.log('Parsed data:', data);
-  return data; // MOVE THIS TO THE VERY END
+  return data;
 }
 
+async function calculateFastingWindow(currentDate, currentData, db) {
+  return new Promise((resolve) => {
+    if (currentData.fastingHours > 0) {
+      resolve(currentData.fastingHours);
+      return;
+    }
+
+    if (!currentData.firstMealTime) {
+      resolve(0);
+      return;
+    }
+
+    const prevDate = new Date(currentDate);
+    prevDate.setDate(prevDate.getDate() - 1);
+    const prevDateStr = prevDate.toISOString().split('T')[0];
+
+    db.get('SELECT health_data FROM entries WHERE date = ?', [prevDateStr], (err, row) => {
+      if (err || !row) {
+        resolve(0);
+        return;
+      }
+
+      try {
+        const prevData = JSON.parse(row.health_data);
+        if (!prevData.lastMealTime) {
+          resolve(0);
+          return;
+        }
+
+        const convertTo24Hour = (timeStr) => {
+          const [time, period] = timeStr.split(/\s*([AP]M)/i);
+          let [hours, minutes] = time.split(':').map(Number);
+          
+          if (period.toUpperCase() === 'PM' && hours !== 12) {
+            hours += 12;
+          } else if (period.toUpperCase() === 'AM' && hours === 12) {
+            hours = 0;
+          }
+          
+          return hours * 60 + minutes;
+        };
+
+        const lastMealMinutes = convertTo24Hour(prevData.lastMealTime);
+        const firstMealMinutes = convertTo24Hour(currentData.firstMealTime);
+        
+        let fastingMinutes;
+        if (firstMealMinutes >= lastMealMinutes) {
+          fastingMinutes = firstMealMinutes - lastMealMinutes;
+        } else {
+          fastingMinutes = (24 * 60 - lastMealMinutes) + firstMealMinutes;
+        }
+        
+        const fastingHours = fastingMinutes / 60;
+        resolve(Math.round(fastingHours * 10) / 10);
+        
+      } catch (e) {
+        resolve(0);
+      }
+    });
+  });
+}
+
+function calculateFastingWindowSync(firstMealTime, lastMealTime) {
+  const convertTo24Hour = (timeStr) => {
+    const [time, period] = timeStr.split(/\s*([AP]M)/i);
+    let [hours, minutes] = time.split(':').map(Number);
+    
+    if (period.toUpperCase() === 'PM' && hours !== 12) {
+      hours += 12;
+    } else if (period.toUpperCase() === 'AM' && hours === 12) {
+      hours = 0;
+    }
+    
+    return hours * 60 + minutes;
+  };
+
+  try {
+    const lastMealMinutes = convertTo24Hour(lastMealTime);
+    const firstMealMinutes = convertTo24Hour(firstMealTime);
+    
+    let fastingMinutes;
+    if (firstMealMinutes >= lastMealMinutes) {
+      fastingMinutes = firstMealMinutes - lastMealMinutes;
+    } else {
+      fastingMinutes = (24 * 60 - lastMealMinutes) + firstMealMinutes;
+    }
+    
+    const fastingHours = fastingMinutes / 60;
+    return Math.round(fastingHours * 10) / 10;
+  } catch (e) {
+    return 0;
+  }
+}
 
 // User profile endpoints
 app.get('/api/profile', (req, res) => {
-  db.get('SELECT * FROM user_profile WHERE id = 1', (err, profile) => {
+  db.get('SELECT * FROM user_profile WHERE id = 1', (err, row) => {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
     }
-    
-    // If no profile exists or no weight, get latest weight from entries
-    if (!profile || !profile.weight) {
-      db.get(`
-        SELECT health_data FROM entries 
-        WHERE health_data IS NOT NULL 
-        ORDER BY date DESC 
-        LIMIT 1
-      `, (err, entry) => {
-        let latestWeight = null;
-        if (entry && entry.health_data) {
-          try {
-            const healthData = JSON.parse(entry.health_data);
-            latestWeight = healthData.weight;
-          } catch (e) {}
-        }
-        
-        const result = profile || {};
-        if (latestWeight && !result.weight) {
-          result.weight = latestWeight;
-        }
-        
-        res.json(result);
-      });
-    } else {
-      res.json(profile);
-    }
+    res.json(row || {});
   });
 });
 
 app.post('/api/profile', (req, res) => {
-  const { date_of_birth, sex, height_feet, height_inches, weight, activity_level, custom_template } = req.body;
-  
-  // Calculate age from date of birth
-  const today = new Date();
-  const birthDate = new Date(date_of_birth);
-  let age = today.getFullYear() - birthDate.getFullYear();
-  const monthDiff = today.getMonth() - birthDate.getMonth();
-  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-    age--;
-  }
+  const { age, sex, height_feet, height_inches, weight, activity_level } = req.body;
   
   const totalHeightInches = (height_feet || 0) * 12 + (height_inches || 0);
   const bmr = calculateBMR(age, sex, totalHeightInches, weight);
   const tdee = calculateTDEE(bmr, activity_level);
+  
+  // Default calorie target is TDEE minus 500 for weight loss
   const calorie_target = tdee - 500;
   
   const timestamp = new Date().toISOString();
   
   db.run(
     `INSERT OR REPLACE INTO user_profile 
-     (id, date_of_birth, sex, height_feet, height_inches, height_cm, weight_lbs, weight_kg, units, activity_level, bmr, tdee, calorie_target, custom_template, updated_at)
-     VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      date_of_birth, 
-      sex, 
-      height_feet, 
-      height_inches, 
-      totalHeightInches * 2.54, // Convert to cm
-      weight, // weight_lbs
-      weight * 0.453592, // Convert to kg
-      'imperial', // units - hardcode for now
-      activity_level, 
-      bmr, 
-      tdee, 
-      calorie_target, 
-      custom_template, 
-      timestamp
-    ],
+     (id, age, sex, height_feet, height_inches, weight, activity_level, bmr, tdee, calorie_target, updated_at)
+     VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [age, sex, height_feet, height_inches, weight, activity_level, bmr, tdee, calorie_target, timestamp],
     function(err) {
       if (err) {
-        console.error('Database error:', err);
         res.status(500).json({ error: err.message });
         return;
       }
       
       res.json({
-        date_of_birth, sex, height_feet, height_inches, weight, activity_level, custom_template,
-        age,
+        age, sex, height_feet, height_inches, weight, activity_level,
         bmr: Math.round(bmr),
         tdee: Math.round(tdee),
         calorie_target: Math.round(calorie_target)
@@ -297,67 +313,12 @@ app.post('/api/profile', (req, res) => {
     }
   );
 });
-// Health check
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
-// Routes
 
-// Get all entries
-app.get('/api/entries', (req, res) => {
-  db.all('SELECT * FROM entries ORDER BY date DESC', (err, rows) => {
-    if (err) {
-      res.status(500).json({ error: err.message });
-      return;
-    }
-    
-    const entries = {};
-    rows.forEach(row => {
-      entries[row.date] = {
-        notes: row.notes,
-        photos: row.photos ? JSON.parse(row.photos) : [],
-        healthData: row.health_data ? JSON.parse(row.health_data) : {},
-        timestamp: row.timestamp
-      };
-    });
-    
-    res.json(entries);
-  });
-});
-
-// Get single entry
-app.get('/api/entries/:date', (req, res) => {
-  const date = req.params.date;
-  
-  db.get('SELECT * FROM entries WHERE date = ?', [date], (err, row) => {
-    if (err) {
-      res.status(500).json({ error: err.message });
-      return;
-    }
-    
-    if (!row) {
-      res.status(404).json({ error: 'Entry not found' });
-      return;
-    }
-    
-    const entry = {
-      notes: row.notes,
-      photos: row.photos ? JSON.parse(row.photos) : [],
-      healthData: row.health_data ? JSON.parse(row.health_data) : {},
-      timestamp: row.timestamp
-    };
-    
-    res.json(entry);
-  });
-});
-
-// Save/update entry
-app.post('/api/entries/:date', (req, res) => {
+app.post('/api/entries/:date', async (req, res) => {
   const date = req.params.date;
   const { notes, photos } = req.body;
   
   if (!notes && (!photos || photos.length === 0)) {
-    // Delete entry if empty
     db.run('DELETE FROM entries WHERE date = ?', [date], (err) => {
       if (err) {
         res.status(500).json({ error: err.message });
@@ -369,6 +330,12 @@ app.post('/api/entries/:date', (req, res) => {
   }
   
   const healthData = parseHealthData(notes || '');
+  
+  const calculatedFasting = await calculateFastingWindow(date, healthData, db);
+  if (calculatedFasting > 0) {
+    healthData.fastingHours = calculatedFasting;
+  }
+  
   const timestamp = new Date().toISOString();
   const id = uuidv4();
   
@@ -395,7 +362,56 @@ app.post('/api/entries/:date', (req, res) => {
   );
 });
 
-// Weekly summary
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+app.get('/api/entries', (req, res) => {
+  db.all('SELECT * FROM entries ORDER BY date DESC', (err, rows) => {
+    if (err) {
+      res.status(500).json({ error: err.message });
+      return;
+    }
+    
+    const entries = {};
+    rows.forEach(row => {
+      entries[row.date] = {
+        notes: row.notes,
+        photos: row.photos ? JSON.parse(row.photos) : [],
+        healthData: row.health_data ? JSON.parse(row.health_data) : {},
+        timestamp: row.timestamp
+      };
+    });
+    
+    res.json(entries);
+  });
+});
+
+app.get('/api/entries/:date', (req, res) => {
+  const date = req.params.date;
+  
+  db.get('SELECT * FROM entries WHERE date = ?', [date], (err, row) => {
+    if (err) {
+      res.status(500).json({ error: err.message });
+      return;
+    }
+    
+    if (!row) {
+      res.status(404).json({ error: 'Entry not found' });
+      return;
+    }
+    
+    const entry = {
+      notes: row.notes,
+      photos: row.photos ? JSON.parse(row.photos) : [],
+      healthData: row.health_data ? JSON.parse(row.health_data) : {},
+      timestamp: row.timestamp
+    };
+    
+    res.json(entry);
+  });
+});
+
 app.get('/api/summary/week/:date', async (req, res) => {
   const date = new Date(req.params.date);
   const dayOfWeek = date.getDay();
@@ -410,11 +426,6 @@ app.get('/api/summary/week/:date', async (req, res) => {
   const startDate = startOfWeek.toISOString().split('T')[0];
   const endDate = endOfWeek.toISOString().split('T')[0];
   
-  console.log('Week calculation (Monday-Sunday):');
-  console.log('Input date:', req.params.date);
-  console.log('Start of week (Monday):', startDate);
-  console.log('End of week (Sunday):', endDate);
-  
   // Get user profile for calorie target
   db.get('SELECT calorie_target FROM user_profile WHERE id = 1', (err, profile) => {
     const calorieTarget = profile ? profile.calorie_target : null;
@@ -428,8 +439,6 @@ app.get('/api/summary/week/:date', async (req, res) => {
           return;
         }
         
-        console.log('Found rows:', rows.length);
-        
         if (rows.length === 0) {
           res.json({
             avgCalories: 0,
@@ -438,20 +447,18 @@ app.get('/api/summary/week/:date', async (req, res) => {
             weightChange: null,
             currentWeight: null,
             daysTracked: 0,
-            calorieTarget: calorieTarget ? Math.round(calorieTarget) : null,
+            calorieTarget,
             totalCalorieDeficit: 0,
             avgDailyDeficit: 0
           });
           return;
         }
         
-        // Your existing enhancedHealthData logic stays the same...
         const enhancedHealthData = [];
         
         for (let i = 0; i < rows.length; i++) {
           const row = rows[i];
           const originalData = row.health_data ? JSON.parse(row.health_data) : {};
-          
           const reparsedData = parseHealthData(row.notes || '');
           
           let smartFasting = reparsedData.fastingHours;
@@ -519,7 +526,6 @@ app.get('/api/summary/week/:date', async (req, res) => {
   });
 });
 
-// Monthly summary
 app.get('/api/summary/month/:year/:month', (req, res) => {
   const year = parseInt(req.params.year);
   const month = parseInt(req.params.month);
@@ -548,20 +554,18 @@ app.get('/api/summary/month/:year/:month', (req, res) => {
             weightChange: null,
             currentWeight: null,
             daysTracked: 0,
-            calorieTarget: calorieTarget ? Math.round(calorieTarget) : null,
+            calorieTarget,
             totalCalorieDeficit: 0,
             avgDailyDeficit: 0
           });
           return;
         }
         
-        // Reparse all entries with smart fasting calculation
         const enhancedHealthData = [];
         
         for (let i = 0; i < rows.length; i++) {
           const row = rows[i];
           const originalData = row.health_data ? JSON.parse(row.health_data) : {};
-          
           const reparsedData = parseHealthData(row.notes || '');
           
           let smartFasting = reparsedData.fastingHours;
@@ -628,7 +632,7 @@ app.get('/api/summary/month/:year/:month', (req, res) => {
     );
   });
 });
-// Overall progress summary (add this after the monthly summary endpoint)
+
 app.get('/api/summary/overall', (req, res) => {
   db.all(
     'SELECT * FROM entries WHERE health_data IS NOT NULL ORDER BY date',
@@ -638,12 +642,22 @@ app.get('/api/summary/overall', (req, res) => {
         return;
       }
       
-      const allHealthData = rows
-        .map(row => ({ 
-          date: row.date, 
-          ...JSON.parse(row.health_data) 
-        }))
-        .filter(data => data.weight); // Only entries with weight data
+      const allHealthData = [];
+      
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const originalData = row.health_data ? JSON.parse(row.health_data) : {};
+        const reparsedData = parseHealthData(row.notes || '');
+        
+        if (reparsedData.weight || originalData.weight) {
+          allHealthData.push({
+            date: row.date,
+            ...originalData,
+            ...reparsedData,
+            weight: reparsedData.weight || originalData.weight
+          });
+        }
+      }
       
       if (allHealthData.length < 2) {
         res.json({
@@ -659,7 +673,6 @@ app.get('/api/summary/overall', (req, res) => {
       const startDate = allHealthData[0].date;
       const currentDate = allHealthData[allHealthData.length - 1].date;
       
-      // Calculate days between
       const start = new Date(startDate);
       const current = new Date(currentDate);
       const daysDiff = Math.floor((current - start) / (1000 * 60 * 60 * 24));
@@ -680,7 +693,6 @@ app.get('/api/summary/overall', (req, res) => {
 // Serve frontend static files
 app.use(express.static(path.join(__dirname, 'frontend')));
 
-// Catch-all handler for frontend routes
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api/')) {
     return res.status(404).json({ error: 'API endpoint not found' });
@@ -688,14 +700,10 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'frontend/index.html'));
 });
 
-
-
-// Start server
 app.listen(PORT, () => {
   console.log(`Health Journal API running on port ${PORT}`);
 });
 
-// Graceful shutdown
 process.on('SIGINT', () => {
   console.log('\nShutting down gracefully...');
   db.close((err) => {

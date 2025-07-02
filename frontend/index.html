@@ -520,11 +520,107 @@
             padding: 0 !important;
         }
         
+        .settings-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #667eea;
+            transition: all 0.3s ease;
+        }
 
-        
+        .settings-btn:hover {
+            transform: rotate(90deg);
+            color: #5a67d8;
+        }
+        /* Profile Form Styles */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 1rem;
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 10px;
+        }
+
+        .form-row .form-group {
+            flex: 1;
+        }
+
+        .calculated-values {
+            background: #f7fafc;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+
+        .calculated-values h4 {
+            margin-bottom: 10px;
+            color: #2d3748;
+        }
+
+        .stat-value.positive {
+            color: #48bb78;
+        }
+
+        .stat-value.negative {
+            color: #f56565;
+        }
+
+        .deficit-indicator {
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-weight: 600;
+            text-align: center;
+            margin-top: 10px;
+        }
+
+        .deficit-indicator.deficit {
+            background: #dcfce7;
+            color: #166534;
+            border: 1px solid #bbf7d0;
+        }
+
+        .deficit-indicator.surplus {
+            background: #fef2f2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
         @media (max-width: 768px) {
             
+            #dailyInput {
+                height: 50vh !important; /* 50% of screen height */
+                font-size: 16px !important; /* Prevents zoom on iOS */
+                min-height: 300px !important;
+            }
             
+            .modal-content {
+                height: 90vh !important; /* Make modal taller on mobile */
+                margin: 2% auto !important;
+            }
             .sidebar {
                 width: 50px;
                 padding: 10px 0;
@@ -660,6 +756,7 @@
 
     <div class="main-content">
         <div class="header" id="mainHeader">
+            <button class="settings-btn" onclick="showProfile()" title="Profile Settings">⚙️</button>
             <h1 id="headerTitle">Health Journal</h1>
             <div class="current-day" id="currentDay"></div>
         </div>
@@ -693,8 +790,7 @@
                 <button class="add-photo-btn" onclick="document.getElementById('photoInput').click()">+ Add Photos</button>
             </div>
             
-            <textarea id="dailyInput" placeholder="Paste your AI journal entry here..." ></textarea>
-            
+            <textarea id="dailyInput" placeholder="Paste your AI journal entry here..." style="width: 100%; height: 400px; padding: 15px; border: 2px solid #e2e8f0; border-radius: 8px; font-family: inherit; resize: vertical; font-size: 16px;"></textarea>
             <div style="display: flex; gap: 10px;">
                 <button class="btn" onclick="saveDailyEntry()" style="flex: 1;">Save Entry</button>
                 <button class="btn secondary" onclick="closeEntry()">Cancel</button>
@@ -709,7 +805,106 @@
             <div id="summaryContent"></div>
         </div>
     </div>
+    <!-- Profile Modal -->
+    <div id="profileModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeProfile()">&times;</span>
+            <h2>Profile & Settings</h2>
+            
+            <form id="profileForm">
+                <div class="form-group">
+                    <label for="date_of_birth">Date of Birth</label>
+                    <input type="date" id="date_of_birth" name="date_of_birth" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="sex">Sex</label>
+                    <select id="sex" name="sex" required>
+                        <option value="">Select...</option>
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                    </select>
+                </div>
 
+                <div class="form-group">
+                    <label for="units">Units</label>
+                    <select id="units" name="units" required onchange="toggleUnits()">
+                        <option value="imperial">Imperial (feet/inches, lbs)</option>
+                        <option value="metric">Metric (cm, kg)</option>
+                    </select>
+                </div>
+                
+                <!-- Imperial Height -->
+                <div class="form-row" id="imperialHeight">
+                    <div class="form-group">
+                        <label for="height_feet">Height (feet)</label>
+                        <input type="number" id="height_feet" name="height_feet" min="3" max="8">
+                    </div>
+                    <div class="form-group">
+                        <label for="height_inches">Height (inches)</label>
+                        <input type="number" id="height_inches" name="height_inches" min="0" max="11">
+                    </div>
+                </div>
+
+                <!-- Metric Height -->
+                <div class="form-group" id="metricHeight" style="display: none;">
+                    <label for="height_cm">Height (cm)</label>
+                    <input type="number" id="height_cm" name="height_cm" min="100" max="250">
+                </div>
+                
+                <div class="form-group">
+                    <label for="weight" id="weightLabel">Current Weight (lbs)</label>
+                    <input type="number" id="weight" name="weight" required min="50" max="500" step="0.1">
+                </div>
+                
+                <div class="form-group">
+                    <label for="activity_level">Activity Level</label>
+                    <select id="activity_level" name="activity_level" required>
+                        <option value="">Select...</option>
+                        <option value="sedentary">Sedentary (little/no exercise)</option>
+                        <option value="lightly_active">Lightly Active (light exercise 1-3 days/week)</option>
+                        <option value="moderately_active">Moderately Active (moderate exercise 3-5 days/week)</option>
+                        <option value="very_active">Very Active (hard exercise 6-7 days/week)</option>
+                        <option value="extremely_active">Extremely Active (very hard exercise, physical job)</option>
+                    </select>
+                </div>
+
+                <hr style="margin: 25px 0; border: 1px solid #e2e8f0;">
+                <h3 style="margin-bottom: 15px; color: #2d3748;">AI Template Settings</h3>
+                
+                <div class="form-group">
+                    <label for="custom_template">Template Instructions (edit as needed)</label>
+                    <textarea id="custom_template" name="custom_template" style="width: 100%; height: 200px; padding: 10px; border: 2px solid #e2e8f0; border-radius: 8px; font-family: monospace; font-size: 0.9rem; resize: vertical;" placeholder="Loading default template..."></textarea>
+                    <small style="color: #666; font-size: 0.85rem;">Edit the AI instructions above. Keep the "Daily Summary:" format line for proper parsing.</small>
+                </div>
+
+                <div style="text-align: center; margin: 10px 0;">
+                    <button type="button" class="btn secondary" onclick="resetToDefault()" style="min-width: auto; padding: 8px 16px;">Reset to Default</button>
+                </div>
+                
+                <div class="calculated-values" id="calculatedValues" style="display: none;">
+                    <h4>Calculated Values</h4>
+                    <div class="stat">
+                        <span class="stat-label">BMR (Base Metabolic Rate):</span>
+                        <span class="stat-value" id="bmrValue">-</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">TDEE (Total Daily Energy Expenditure):</span>
+                        <span class="stat-value" id="tdeeValue">-</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Recommended Calorie Target (for weight loss):</span>
+                        <span class="stat-value" id="targetValue">-</span>
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button type="submit" class="btn" style="flex: 1;">Save Profile</button>
+                    <button type="button" class="btn secondary" onclick="closeProfile()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
     <script>
         let currentDay = new Date().getDate();
         let currentMonth = new Date().getMonth();
@@ -1077,15 +1272,31 @@
                     let summaryContent = '';
                     if (entry.healthData && Object.values(entry.healthData).some(val => val > 0 || val !== null)) {
                         const data = entry.healthData;
+                        
+                        // Calculate deficit/surplus if we have profile and calories
+                        let deficitContent = '';
+                        if (userProfile.calorie_target && entry.healthData && entry.healthData.calories) {
+                            const deficit = Math.round(userProfile.calorie_target - entry.healthData.calories); // Add Math.round here
+                            const deficitClass = deficit > 0 ? 'deficit' : 'surplus';
+                            const deficitText = deficit > 0 ? `${deficit} calorie deficit` : `${Math.abs(deficit)} calorie surplus`;
+                            
+                            deficitContent = `
+                                <div class="deficit-indicator ${deficitClass}">
+                                    ${deficitText} (Target: ${Math.round(userProfile.calorie_target)})
+                                </div>
+                            `;
+                        }
+
                         summaryContent = `
-                            <div class="daily-summary" style="background: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 8px; padding: ${isToday ? '15px' : '10px'}; margin-bottom: ${isToday ? '20px' : '10px'};">
-                                <h4 style="margin: 0 0 8px 0; color: #0369a1; font-size: 0.95rem;">📊 Daily Summary</h4>
-                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.85rem;">
+                            <div style="background: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+                                <h4 style="margin: 0 0 10px 0; color: #0369a1;">📊 Daily Summary</h4>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.9rem;">
                                     ${data.calories ? `<div><strong>Calories:</strong> ${data.calories}</div>` : ''}
                                     ${data.exercise ? `<div><strong>Exercise:</strong> ${data.exercise} min</div>` : ''}
                                     ${data.weight ? `<div><strong>Weight:</strong> ${data.weight} lbs</div>` : ''}
                                     ${data.fastingHours ? `<div><strong>Fasting:</strong> ${data.fastingHours} hrs</div>` : ''}
                                 </div>
+                                ${deficitContent}
                             </div>
                         `;
                     }
@@ -1108,10 +1319,25 @@
                         </div>
                     `;
                 } else {
-                    // Desktop logic (same as before but with compact adjustments)
+                    // Desktop logic - add deficit calculation
                     let summaryContent = '';
                     if (entry.healthData && Object.values(entry.healthData).some(val => val > 0 || val !== null)) {
                         const data = entry.healthData;
+                        
+                        // Calculate deficit/surplus if we have profile and calories
+                        let deficitContent = '';
+                        if (userProfile.calorie_target && entry.healthData && entry.healthData.calories) {
+                            const deficit = Math.round(userProfile.calorie_target - entry.healthData.calories); // Add Math.round here
+                            const deficitClass = deficit > 0 ? 'deficit' : 'surplus';
+                            const deficitText = deficit > 0 ? `${deficit} calorie deficit` : `${Math.abs(deficit)} calorie surplus`;
+                            
+                            deficitContent = `
+                                <div class="deficit-indicator ${deficitClass}">
+                                    ${deficitText} (Target: ${Math.round(userProfile.calorie_target)})
+                                </div>
+                            `;
+                        }
+                        
                         summaryContent = `
                             <div style="background: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
                                 <h4 style="margin: 0 0 10px 0; color: #0369a1;">📊 Daily Summary</h4>
@@ -1121,6 +1347,7 @@
                                     ${data.weight ? `<div><strong>Weight:</strong> ${data.weight} lbs</div>` : ''}
                                     ${data.fastingHours ? `<div><strong>Fasting:</strong> ${data.fastingHours} hrs</div>` : ''}
                                 </div>
+                                ${deficitContent}
                             </div>
                         `;
                     }
@@ -1156,9 +1383,18 @@
                 month: 'long', 
                 day: 'numeric' 
             });
-            
-            const template = `# Daily Health Journal Template
-            Date: ${todayDate}
+            // Calculate target info FIRST
+            let targetInfo = '';
+            if (userProfile.calorie_target) {
+                targetInfo = `\nCalorie Target: ${Math.round(userProfile.calorie_target)} calories/day`;
+            }
+            // Use custom template if saved, otherwise use your current default
+            const templateContent = userProfile.custom_template || `CRITICAL FORMATTING REQUIREMENTS:
+            - Daily Summary MUST use EXACT format below
+            - Use "Total calories:" not "Total calories consumed:"
+            - Use "Exercise: X min" not "X minutes total"
+            - Follow examples precisely
+
             Instructions for AI:
             - Help me track my daily health journey with encouragement
             - Provide calorie estimates and organize entries chronologically
@@ -1169,23 +1405,24 @@
             - Calculate fasting windows and daily totals when context provided
             - Give brief, supportive feedback or insights after each entry
             - If timing/duration unclear, make reasonable assumptions
-            Best Practices (reminder to self):
-            - Include specific times when possible (8:15 AM vs "morning")
-            - State exercise durations explicitly ("3.5 minutes" not "short workout")
-            - Mention last meal for fasting context when relevant
-            - Include metrics like heart rate, weight when available
-            - Be specific about brands/products when possible for better nutrition data
-            - Include cooking methods when relevant (grilled vs fried chicken)
-            - Mention portion sizes when known (6oz, 1 cup, etc.)
-            Today's Entry:
-            [Tell me about meals, exercise, weight, how you're feeling, etc.]
-            Please format as:
-            **Time** - Activity/meal (~calories, protein/fat/carbs/fiber when available) - Brief encouraging note
+
+            REQUIRED Daily Summary Format (COPY EXACTLY):
+            Total calories: ~[number] | Exercise: [number] min | Fasting window: [number] hrs | Protein: ~[number]g | Fiber: ~[number]g
+
             Examples: 
             **10:00 AM** - Trader Joe's Chocolate Chip Protein Bar (~190 cal, 20g protein, 7g fat, 15g carbs, 10g fiber) - Great protein boost!
-            **12:30 PM** - Grilled chicken breast & steamed broccoli (~300 cal, 35g protein, 3g fat, 8g carbs, 4g fiber) - Perfect lean meal!
+            **12:30 PM** - Grilled chicken breast & steamed broccoli (~300 cal, 35g protein, 3g fat, 8g carbs, 4g fiber) - Perfect lean meal!`;
+
+            const template = `# Daily Health Journal Template
+            Date: ${todayDate}${targetInfo}
+
+            ${templateContent}
+
+            Today's Entry:
+            [Tell me about meals, exercise, weight, how you're feeling, etc.]
+
             Daily Summary:
-            Total calories: ~[number] | Exercise: [minutes] | Fasting window: [hours] | Protein: ~[grams] | Fiber: ~[grams]
+            Total calories: ~[number] | Exercise: [number] min | Fasting window: [number] hrs | Protein: ~[number]g | Fiber: ~[number]g
             [Supportive wrap-up comment about the day]`;
 
             // Rest of the function stays the same...
@@ -1281,7 +1518,29 @@
                 
                 if (response.ok) {
                     const summary = await response.json();
-                    
+                    // Calculate deficit section FIRST
+                    let deficitSection = '';
+                    if (summary.calorieTarget) {
+                        const deficitClass = summary.totalCalorieDeficit > 0 ? 'positive' : 'negative';
+                        const deficitLabel = summary.totalCalorieDeficit > 0 ? 'Total Deficit:' : 'Total Surplus:';
+                        const avgDeficitClass = summary.avgDailyDeficit > 0 ? 'positive' : 'negative';
+                        const avgDeficitLabel = summary.avgDailyDeficit > 0 ? 'Avg Daily Deficit:' : 'Avg Daily Surplus:';
+                        
+                        deficitSection = `
+                            <div class="stat">
+                                <span class="stat-label">Calorie Target:</span>
+                                <span class="stat-value">${summary.calorieTarget}/day</span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-label">${deficitLabel}</span>
+                                <span class="stat-value ${deficitClass}">${Math.abs(summary.totalCalorieDeficit).toLocaleString()} calories</span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-label">${avgDeficitLabel}</span>
+                                <span class="stat-value ${avgDeficitClass}">${Math.abs(summary.avgDailyDeficit)} calories/day</span>
+                            </div>
+                        `;
+                    }
                     content.innerHTML = `
                         <h2>Weekly Summary</h2>
                         <div class="stat">
@@ -1291,6 +1550,11 @@
                         <div class="stat">
                             <span class="stat-label">Average Calories:</span>
                             <span class="stat-value">${summary.avgCalories}</span>
+                        </div>
+                        ${deficitSection}
+                        <div class="stat">
+                            <span class="stat-label">Total Exercise:</span>
+                            <span class="stat-value">${summary.totalExercise} minutes</span>
                         </div>
                         <div class="stat">
                             <span class="stat-label">Total Exercise:</span>
@@ -1472,6 +1736,170 @@
             // Re-mark the current day after updating data classes
             markCurrentDay();
         }
+        async function loadProfile() {
+            try {
+                const response = await fetch(`${API_BASE}/profile`);
+                if (response.ok) {
+                    userProfile = await response.json();
+                    console.log('Loaded user profile:', userProfile);
+                } else {
+                    console.log('No profile found, will need to create one');
+                    userProfile = {};
+                }
+            } catch (e) {
+                console.error('Failed to load profile:', e);
+                userProfile = {};
+            }
+        }
+
+        function showProfile() {
+            // Define the full default template
+            const defaultTemplate = `CRITICAL FORMATTING REQUIREMENTS:
+        - Daily Summary MUST use EXACT format below
+        - Use "Total calories:" not "Total calories consumed:"
+        - Use "Exercise: X min" not "X minutes total"
+        - Follow examples precisely
+
+        Instructions for AI:
+        - Help me track my daily health journey with encouragement
+        - Provide calorie estimates and organize entries chronologically
+        - Include nutritional breakdown (protein, fat, carbs, fiber, sugar) for ALL foods when possible
+        - For branded products, look up actual nutrition facts when available
+        - For basic foods (chicken, broccoli, rice, etc.), estimate macros based on standard USDA data
+        - Assume typical serving sizes unless specified (e.g., 4oz chicken breast, 1 cup broccoli)
+        - Calculate fasting windows and daily totals when context provided
+        - Give brief, supportive feedback or insights after each entry
+        - If timing/duration unclear, make reasonable assumptions
+
+        REQUIRED Daily Summary Format (COPY EXACTLY):
+        Total calories: ~[number] | Exercise: [number] min | Fasting window: [number] hrs | Protein: ~[number]g | Fiber: ~[number]g
+
+        Examples: 
+        **10:00 AM** - Trader Joe's Chocolate Chip Protein Bar (~190 cal, 20g protein, 7g fat, 15g carbs, 10g fiber) - Great protein boost!
+        **12:30 PM** - Grilled chicken breast & steamed broccoli (~300 cal, 35g protein, 3g fat, 8g carbs, 4g fiber) - Perfect lean meal!`;
+
+            if (userProfile.date_of_birth) {
+                document.getElementById('date_of_birth').value = userProfile.date_of_birth;
+                document.getElementById('sex').value = userProfile.sex;
+                document.getElementById('height_feet').value = userProfile.height_feet;
+                document.getElementById('height_inches').value = userProfile.height_inches || 0;
+                document.getElementById('weight').value = userProfile.weight;
+                document.getElementById('activity_level').value = userProfile.activity_level;
+                
+                updateCalculatedValues();
+            }
+            
+            // ALWAYS load the template (whether new user or existing user)
+            document.getElementById('custom_template').value = userProfile.custom_template || defaultTemplate;
+            
+            document.getElementById('profileModal').style.display = 'block';
+        }
+        function resetToDefault() {
+            const defaultTemplate = `CRITICAL FORMATTING REQUIREMENTS:
+        - Daily Summary MUST use EXACT format below
+        - Use "Total calories:" not "Total calories consumed:"
+        - Use "Exercise: X min" not "X minutes total"
+        - Follow examples precisely
+
+        Instructions for AI:
+        - Help me track my daily health journey with encouragement
+        - Provide calorie estimates and organize entries chronologically
+        - Include nutritional breakdown (protein, fat, carbs, fiber, sugar) for ALL foods when possible
+        - For branded products, look up actual nutrition facts when available
+        - For basic foods (chicken, broccoli, rice, etc.), estimate macros based on standard USDA data
+        - Assume typical serving sizes unless specified (e.g., 4oz chicken breast, 1 cup broccoli)
+        - Calculate fasting windows and daily totals when context provided
+        - Give brief, supportive feedback or insights after each entry
+        - If timing/duration unclear, make reasonable assumptions
+
+        REQUIRED Daily Summary Format (COPY EXACTLY):
+        Total calories: ~[number] | Exercise: [number] min | Fasting window: [number] hrs | Protein: ~[number]g | Fiber: ~[number]g
+
+        Examples: 
+        **10:00 AM** - Trader Joe's Chocolate Chip Protein Bar (~190 cal, 20g protein, 7g fat, 15g carbs, 10g fiber) - Great protein boost!
+        **12:30 PM** - Grilled chicken breast & steamed broccoli (~300 cal, 35g protein, 3g fat, 8g carbs, 4g fiber) - Perfect lean meal!`;
+
+            document.getElementById('custom_template').value = defaultTemplate;
+        }
+
+        function closeProfile() {
+            document.getElementById('profileModal').style.display = 'none';
+        }
+        
+        function toggleUnits() {
+            const units = document.getElementById('units').value;
+            const imperialHeight = document.getElementById('imperialHeight');
+            const metricHeight = document.getElementById('metricHeight');
+            const weightLabel = document.getElementById('weightLabel');
+            const weightInput = document.getElementById('weight');
+            
+            if (units === 'metric') {
+                imperialHeight.style.display = 'none';
+                metricHeight.style.display = 'block';
+                weightLabel.textContent = 'Current Weight (kg)';
+                weightInput.setAttribute('min', '20');
+                weightInput.setAttribute('max', '200');
+            } else {
+                imperialHeight.style.display = 'block';
+                metricHeight.style.display = 'none';
+                weightLabel.textContent = 'Current Weight (lbs)';
+                weightInput.setAttribute('min', '50');
+                weightInput.setAttribute('max', '500');
+            }
+        }
+
+        function updateCalculatedValues() {
+            const dob = document.getElementById('date_of_birth').value;
+            const sex = document.getElementById('sex').value;
+            const heightFeet = parseInt(document.getElementById('height_feet').value) || 0;
+            const heightInches = parseInt(document.getElementById('height_inches').value) || 0;
+            const weight = parseFloat(document.getElementById('weight').value);
+            const activityLevel = document.getElementById('activity_level').value;
+            
+            if (dob && sex && heightFeet && weight && activityLevel) {
+                // Calculate age from DOB
+                const today = new Date();
+                const birthDate = new Date(dob);
+                let age = today.getFullYear() - birthDate.getFullYear();
+                const monthDiff = today.getMonth() - birthDate.getMonth();
+                if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+                    age--;
+                }
+                
+                const totalHeightInches = heightFeet * 12 + heightInches;
+                const bmr = calculateBMR(age, sex, totalHeightInches, weight);
+                const tdee = calculateTDEE(bmr, activityLevel);
+                const target = tdee - 500;
+                
+                document.getElementById('bmrValue').textContent = Math.round(bmr) + ' calories';
+                document.getElementById('tdeeValue').textContent = Math.round(tdee) + ' calories';
+                document.getElementById('targetValue').textContent = Math.round(target) + ' calories';
+                
+                document.getElementById('calculatedValues').style.display = 'block';
+            } else {
+                document.getElementById('calculatedValues').style.display = 'none';
+            }
+        }
+
+        function calculateBMR(age, sex, heightCm, weightKg) {
+            // BMR calculation using metric (convert in the endpoint if needed)
+            if (sex.toLowerCase() === 'male') {
+                return (10 * weightKg) + (6.25 * heightCm) - (5 * age) + 5;
+            } else {
+                return (10 * weightKg) + (6.25 * heightCm) - (5 * age) - 161;
+            }
+        }
+
+        function calculateTDEE(bmr, activityLevel) {
+            const multipliers = {
+                'sedentary': 1.2,
+                'lightly_active': 1.375,
+                'moderately_active': 1.55,
+                'very_active': 1.725,
+                'extremely_active': 1.9
+            };
+            return bmr * (multipliers[activityLevel] || 1.2);
+        }
        async function loadOverallProgress() {
             try {
                 const response = await fetch(`${API_BASE}/summary/overall`);
@@ -1563,10 +1991,85 @@
             updateMonthDisplay();
             updateCurrentDayDisplay();
             await loadData(); // Wait for data to load
+            await loadProfile();
             selectDay(currentDay);
             setupPhotoUpload();
         }
+        // Add event listeners for real-time calculation
+        document.addEventListener('DOMContentLoaded', function() {
+            const inputs = ['date_of_birth', 'sex', 'height_feet', 'height_inches', 'weight', 'activity_level'];
+            inputs.forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.addEventListener('input', updateCalculatedValues);
+                    element.addEventListener('change', updateCalculatedValues);
+                }
+            });
+            
+            // Handle profile form submission
+            const profileForm = document.getElementById('profileForm');
+            if (profileForm) {
+                profileForm.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    
+                    const formData = new FormData(e.target);
+                    const profileData = Object.fromEntries(formData.entries());
+                    
+                    // Convert numeric fields
+                    profileData.height_feet = parseInt(profileData.height_feet);
+                    profileData.height_inches = parseInt(profileData.height_inches) || 0;
+                    profileData.weight = parseFloat(profileData.weight);
+                    
+                    console.log('Sending profile data:', profileData); // Debug line
+                    
+                    try {
+                        const response = await fetch(`${API_BASE}/profile`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify(profileData)
+                        });
+                        
+                        if (response.ok) {
+                            userProfile = await response.json();
+                            console.log('Profile saved:', userProfile);
+                            closeProfile();
+                            
+                            // Refresh current view if showing today
+                            if (isCurrentDay()) {
+                                const dayKey = `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-${currentDay.toString().padStart(2, '0')}`;
+                                displayDailyView(dailyEntries[dayKey]);
+                            }
+                        } else {
+                            const errorText = await response.text();
+                            console.error('Server error:', errorText);
+                            alert('Failed to save profile. Please try again.');
+                        }
+                    } catch (e) {
+                        console.error('Failed to save profile:', e);
+                        alert('Failed to connect to server. Please check your connection.');
+                    }
+                });
+            }
+        });
 
+        // Update window.onclick to include profile modal
+        window.onclick = function(event) {
+            const summaryModal = document.getElementById('summaryModal');
+            const entryModal = document.getElementById('entryModal');
+            const profileModal = document.getElementById('profileModal');
+            if (event.target == summaryModal) {
+                summaryModal.style.display = 'none';
+            }
+            if (event.target == entryModal) {
+                entryModal.style.display = 'none';
+                tempPhotos = [];
+            }
+            if (event.target == profileModal) {
+                profileModal.style.display = 'none';
+            }
+        }
         // Make window.onload async:
         window.onload = async function() {
             console.log('Page loaded, initializing...');
