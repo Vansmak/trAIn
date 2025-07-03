@@ -65,8 +65,7 @@ docker run -d \
   --name health-journal \
   -p 8081:3001 \
   -v ./data:/app/data \
-  
-  vansmak/custom:health-journal
+  vansmak/train-health
 
 # Access at http://localhost:8081
 ```
@@ -76,12 +75,11 @@ Create a `docker-compose.yml` file:
 ```yaml
 services:
   health-journal:
-    image: vansmak/custom:health-journal
+    image: vansmak/train-health
     ports:
       - "8081:3001"
     volumes:
       - ./data:/app/data
-      
     environment:
       - NODE_ENV=production
       - PORT=3001
@@ -104,9 +102,8 @@ docker run -p 8081:3001 train-health
 Visit `http://localhost:8081` to start your health journey.
 
 ### Data Persistence
-Your health data and photos are stored in the mounted volumes:
+Your health data is stored in the mounted volume:
 - `./data` - Database and configuration
-
 
 ## How it works
 
