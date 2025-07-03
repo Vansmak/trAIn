@@ -58,30 +58,55 @@ People who want health awareness without the app obsession.
 - Docker
 - An AI assistant account (Claude, ChatGPT, etc.)
 
-### Quick Start
+### Option 1: Quick Start (Docker Hub)
 ```bash
-# Clone the repository
+# Pull and run the image
+docker run -d \
+  --name health-journal \
+  -p 8081:3001 \
+  -v ./data:/app/data \
+  
+  vansmak/custom:health-journal
+
+# Access at http://localhost:8081
+```
+
+### Option 2: Docker Compose (Recommended)
+Create a `docker-compose.yml` file:
+```yaml
+services:
+  health-journal:
+    image: vansmak/custom:health-journal
+    ports:
+      - "8081:3001"
+    volumes:
+      - ./data:/app/data
+      
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+    restart: unless-stopped
+```
+
+Then run:
+```bash
+docker-compose up -d
+```
+
+### Option 3: Build from Source
+```bash
 git clone https://github.com/Vansmak/trAIn.git
 cd trAIn
-
-# Build and run with Docker
-docker build -t trAIn-health .
-docker run -p 3001:3001 trAIn-health
+docker build -t train-health .
+docker run -p 8081:3001 train-health
 ```
 
-### Production Deployment
-```bash
-# For persistent data storage
-docker run -d \
-  --name trAIn-health \
-  -p 3001:3001 \
-  -v ./data:/app/data \
-  -v ./uploads:/app/uploads \
-  --restart unless-stopped \
-  trAIn-health
-```
+Visit `http://localhost:8081` to start your health journey.
 
-Visit `http://localhost:3001` to start your health journey.
+### Data Persistence
+Your health data and photos are stored in the mounted volumes:
+- `./data` - Database and configuration
+
 
 ## How it works
 
@@ -192,7 +217,7 @@ npm run dev
 ## Roadmap
 
 See our [development roadmap](ROADMAP.md) for planned features:
-
+- make ai engine choice a variable
 - Data visualization improvements
 - Export/import capabilities
 - Multi-user support
