@@ -9,6 +9,8 @@ const { v4: uuidv4 } = require('uuid');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+let userProfile = {};
+
 // Middleware
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
@@ -35,11 +37,8 @@ db.serialize(() => {
     timestamp TEXT
   )`);
   
-  // Drop and recreate the user_profile table to fix structure
-  //db.run(`DROP TABLE IF EXISTS user_profile`);
-  
-  // Create the user_profile table with ALL the columns
-  db.run(`CREATE TABLE user_profile (
+  // Create the user_profile table with ALL the columns (IF NOT EXISTS)
+  db.run(`CREATE TABLE IF NOT EXISTS user_profile (
     id INTEGER PRIMARY KEY CHECK (id = 1),
     date_of_birth TEXT,
     sex TEXT,
@@ -57,7 +56,37 @@ db.serialize(() => {
     updated_at TEXT
   )`);
 });
+function calculateFastingWindowSync(currentFirstMeal, prevLastMeal) {
+  try {
+    const convertTo24Hour = (timeStr) => {
+      const [time, period] = timeStr.split(/\s*([AP]M)/i);
+      let [hours, minutes] = time.split(':').map(Number);
+      
+      if (period.toUpperCase() === 'PM' && hours !== 12) {
+        hours += 12;
+      } else if (period.toUpperCase() === 'AM' && hours === 12) {
+        hours = 0;
+      }
+      
+      return hours * 60 + minutes;
+    };
 
+    const prevLastMealMinutes = convertTo24Hour(prevLastMeal);
+    const currentFirstMealMinutes = convertTo24Hour(currentFirstMeal);
+    
+    let fastingMinutes;
+    if (currentFirstMealMinutes >= prevLastMealMinutes) {
+      fastingMinutes = currentFirstMealMinutes - prevLastMealMinutes;
+    } else {
+      fastingMinutes = (24 * 60 - prevLastMealMinutes) + currentFirstMealMinutes;
+    }
+    
+    return Math.round((fastingMinutes / 60) * 10) / 10;
+  } catch (e) {
+    console.error('Error calculating fasting window:', e);
+    return 0;
+  }
+}
 // BMR calculation using Mifflin-St Jeor equation
 function calculateBMR(age, sex, heightInches, weightLbs) {
   const weightKg = weightLbs * 0.453592;
@@ -82,9 +111,11 @@ function calculateTDEE(bmr, activityLevel) {
   return bmr * (multipliers[activityLevel] || 1.2);
 }
 
+// Updated parseHealthData function in server.js
 function parseHealthData(entryText) {
   const data = {
     calories: 0,
+    caloriesBurned: 0,  // Add this new field
     exercise: 0,
     weight: null,
     fastingHours: 0,
@@ -92,10 +123,10 @@ function parseHealthData(entryText) {
     firstMealTime: null
   };
 
-  // Extract calories - handle multiple formats
+  // Extract calories consumed - handle multiple formats
   const caloriesPatterns = [
-    /Total calories consumed:.*?~?([\d,]+)/i,
     /Total calories:.*?~?([\d,]+)/i,
+    /Total calories consumed:.*?~?([\d,]+)/i,
     /Net calories:.*?~?([\d,]+)/i,
     /Calories:.*?~?([\d,]+)/i
   ];
@@ -108,6 +139,24 @@ function parseHealthData(entryText) {
     }
   }
 
+  // Extract calories burned - NEW PATTERNS
+  const caloriesBurnedPatterns = [
+    /Calories burned:.*?~?([\d,]+)/i,
+    /Burned:.*?~?([\d,]+)\s*cal/i,
+    /Exercise calories:.*?~?([\d,]+)/i,
+    /Workout.*?burned.*?~?([\d,]+)/i,
+    /~([\d,]+)\s*cal\s*burned/i
+  ];
+
+  for (const pattern of caloriesBurnedPatterns) {
+    const match = entryText.match(pattern);
+    if (match) {
+      data.caloriesBurned = parseInt(match[1].replace(/,/g, ''));
+      break;
+    }
+  }
+
+  // Rest of parsing stays the same...
   // Extract exercise minutes - handle multiple formats
   const exercisePatterns = [
     /Exercise:.*?(\d+)\+?\s*min(?:utes)?/i,
@@ -123,6 +172,7 @@ function parseHealthData(entryText) {
       break;
     }
   }
+
 
   // Extract weight - more flexible patterns
   const weightPatterns = [
@@ -395,7 +445,7 @@ app.post('/api/entries/:date', (req, res) => {
   );
 });
 
-// Weekly summary
+// Updated weekly summary calculation with proper deficit
 app.get('/api/summary/week/:date', async (req, res) => {
   const date = new Date(req.params.date);
   const dayOfWeek = date.getDay();
@@ -410,11 +460,6 @@ app.get('/api/summary/week/:date', async (req, res) => {
   const startDate = startOfWeek.toISOString().split('T')[0];
   const endDate = endOfWeek.toISOString().split('T')[0];
   
-  console.log('Week calculation (Monday-Sunday):');
-  console.log('Input date:', req.params.date);
-  console.log('Start of week (Monday):', startDate);
-  console.log('End of week (Sunday):', endDate);
-  
   // Get user profile for calorie target
   db.get('SELECT calorie_target FROM user_profile WHERE id = 1', (err, profile) => {
     const calorieTarget = profile ? profile.calorie_target : null;
@@ -428,11 +473,10 @@ app.get('/api/summary/week/:date', async (req, res) => {
           return;
         }
         
-        console.log('Found rows:', rows.length);
-        
         if (rows.length === 0) {
           res.json({
             avgCalories: 0,
+            avgCaloriesBurned: 0,
             totalExercise: 0,
             avgFasting: 0,
             weightChange: null,
@@ -440,12 +484,14 @@ app.get('/api/summary/week/:date', async (req, res) => {
             daysTracked: 0,
             calorieTarget: calorieTarget ? Math.round(calorieTarget) : null,
             totalCalorieDeficit: 0,
-            avgDailyDeficit: 0
+            avgDailyDeficit: 0,
+            totalNetCalorieDeficit: 0,  // NEW: True deficit including exercise
+            avgDailyNetDeficit: 0       // NEW: True daily deficit including exercise
           });
           return;
         }
         
-        // Your existing enhancedHealthData logic stays the same...
+        // Enhanced health data with proper parsing
         const enhancedHealthData = [];
         
         for (let i = 0; i < rows.length; i++) {
@@ -477,8 +523,13 @@ app.get('/api/summary/week/:date', async (req, res) => {
           });
         }
         
+        // Calculate averages
         const avgCalories = Math.round(
           enhancedHealthData.reduce((sum, data) => sum + (data.calories || 0), 0) / enhancedHealthData.length
+        );
+        
+        const avgCaloriesBurned = Math.round(
+          enhancedHealthData.reduce((sum, data) => sum + (data.caloriesBurned || 0), 0) / enhancedHealthData.length
         );
         
         const totalExercise = enhancedHealthData.reduce((sum, data) => sum + (data.exercise || 0), 0);
@@ -492,19 +543,32 @@ app.get('/api/summary/week/:date', async (req, res) => {
           (weights[weights.length - 1] - weights[0]).toFixed(1) : null;
         const currentWeight = weights.length > 0 ? weights[weights.length - 1] : null;
         
-        // Calculate calorie deficit/surplus
+        // Calculate calorie deficit/surplus (OLD and NEW methods)
         let totalCalorieDeficit = 0;
         let avgDailyDeficit = 0;
+        let totalNetCalorieDeficit = 0;  // NEW: True deficit including exercise
+        let avgDailyNetDeficit = 0;     // NEW: True daily deficit including exercise
         
         if (calorieTarget) {
+          // OLD METHOD: Just consumed vs target
           const totalCalories = enhancedHealthData.reduce((sum, data) => sum + (data.calories || 0), 0);
           const targetCalories = calorieTarget * enhancedHealthData.length;
           totalCalorieDeficit = targetCalories - totalCalories;
           avgDailyDeficit = totalCalorieDeficit / enhancedHealthData.length;
+          
+          // NEW METHOD: Net calories (consumed - burned) vs target
+          const totalNetCalories = enhancedHealthData.reduce((sum, data) => {
+            const consumed = data.calories || 0;
+            const burned = data.caloriesBurned || 0;
+            return sum + (consumed - burned);
+          }, 0);
+          totalNetCalorieDeficit = targetCalories - totalNetCalories;
+          avgDailyNetDeficit = totalNetCalorieDeficit / enhancedHealthData.length;
         }
         
         res.json({
           avgCalories,
+          avgCaloriesBurned,
           totalExercise,
           avgFasting: parseFloat(avgFasting),
           weightChange: weightChange ? parseFloat(weightChange) : null,
@@ -512,14 +576,15 @@ app.get('/api/summary/week/:date', async (req, res) => {
           daysTracked: enhancedHealthData.length,
           calorieTarget: calorieTarget ? Math.round(calorieTarget) : null,
           totalCalorieDeficit: Math.round(totalCalorieDeficit),
-          avgDailyDeficit: Math.round(avgDailyDeficit)
+          avgDailyDeficit: Math.round(avgDailyDeficit),
+          totalNetCalorieDeficit: Math.round(totalNetCalorieDeficit),
+          avgDailyNetDeficit: Math.round(avgDailyNetDeficit)
         });
       }
     );
   });
 });
 
-// Monthly summary
 app.get('/api/summary/month/:year/:month', (req, res) => {
   const year = parseInt(req.params.year);
   const month = parseInt(req.params.month);
@@ -543,6 +608,7 @@ app.get('/api/summary/month/:year/:month', (req, res) => {
         if (rows.length === 0) {
           res.json({
             avgCalories: 0,
+            avgCaloriesBurned: 0,
             totalExercise: 0,
             avgFasting: 0,
             weightChange: null,
@@ -550,7 +616,9 @@ app.get('/api/summary/month/:year/:month', (req, res) => {
             daysTracked: 0,
             calorieTarget: calorieTarget ? Math.round(calorieTarget) : null,
             totalCalorieDeficit: 0,
-            avgDailyDeficit: 0
+            avgDailyDeficit: 0,
+            totalNetCalorieDeficit: 0,
+            avgDailyNetDeficit: 0
           });
           return;
         }
@@ -591,6 +659,10 @@ app.get('/api/summary/month/:year/:month', (req, res) => {
           enhancedHealthData.reduce((sum, data) => sum + (data.calories || 0), 0) / enhancedHealthData.length
         );
         
+        const avgCaloriesBurned = Math.round(
+          enhancedHealthData.reduce((sum, data) => sum + (data.caloriesBurned || 0), 0) / enhancedHealthData.length
+        );
+        
         const totalExercise = enhancedHealthData.reduce((sum, data) => sum + (data.exercise || 0), 0);
         
         const validFastingData = enhancedHealthData.filter(data => data.fastingHours > 0);
@@ -602,19 +674,32 @@ app.get('/api/summary/month/:year/:month', (req, res) => {
           (weights[weights.length - 1] - weights[0]).toFixed(1) : null;
         const currentWeight = weights.length > 0 ? weights[weights.length - 1] : null;
         
-        // Calculate calorie deficit/surplus
+        // Calculate calorie deficit/surplus (both old and new methods)
         let totalCalorieDeficit = 0;
         let avgDailyDeficit = 0;
+        let totalNetCalorieDeficit = 0;
+        let avgDailyNetDeficit = 0;
         
         if (calorieTarget) {
+          // OLD METHOD: Just consumed vs target
           const totalCalories = enhancedHealthData.reduce((sum, data) => sum + (data.calories || 0), 0);
           const targetCalories = calorieTarget * enhancedHealthData.length;
           totalCalorieDeficit = targetCalories - totalCalories;
           avgDailyDeficit = totalCalorieDeficit / enhancedHealthData.length;
+          
+          // NEW METHOD: Net calories (consumed - burned) vs target
+          const totalNetCalories = enhancedHealthData.reduce((sum, data) => {
+            const consumed = data.calories || 0;
+            const burned = data.caloriesBurned || 0;
+            return sum + (consumed - burned);
+          }, 0);
+          totalNetCalorieDeficit = targetCalories - totalNetCalories;
+          avgDailyNetDeficit = totalNetCalorieDeficit / enhancedHealthData.length;
         }
         
         res.json({
           avgCalories,
+          avgCaloriesBurned,
           totalExercise,
           avgFasting: parseFloat(avgFasting),
           weightChange: weightChange ? parseFloat(weightChange) : null,
@@ -622,7 +707,9 @@ app.get('/api/summary/month/:year/:month', (req, res) => {
           daysTracked: enhancedHealthData.length,
           calorieTarget: calorieTarget ? Math.round(calorieTarget) : null,
           totalCalorieDeficit: Math.round(totalCalorieDeficit),
-          avgDailyDeficit: Math.round(avgDailyDeficit)
+          avgDailyDeficit: Math.round(avgDailyDeficit),
+          totalNetCalorieDeficit: Math.round(totalNetCalorieDeficit),
+          avgDailyNetDeficit: Math.round(avgDailyNetDeficit)
         });
       }
     );

@@ -1,0 +1,30 @@
+<svg width="200" height="150" xmlns="http://www.w3.org/2000/svg">
+  <!-- Left footprint -->
+  <g transform="translate(30,60)">
+    <!-- Toes -->
+    <circle cx="5" cy="0" r="3" fill="#666" stroke="#333" stroke-width="1"/>
+    <circle cx="12" cy="-2" r="3" fill="#666" stroke="#333" stroke-width="1"/>
+    <circle cx="19" cy="-1" r="3" fill="#666" stroke="#333" stroke-width="1"/>
+    <circle cx="25" cy="1" r="2.5" fill="#666" stroke="#333" stroke-width="1"/>
+    <circle cx="30" cy="3" r="2" fill="#666" stroke="#333" stroke-width="1"/>
+    <!-- Foot -->
+    <ellipse cx="15" cy="20" rx="12" ry="25" fill="#666" stroke="#333" stroke-width="1"/>
+  </g>
+  
+  <!-- Right footprint -->
+  <g transform="translate(130,60)">
+    <!-- Toes -->
+    <circle cx="5" cy="0" r="3" fill="#666" stroke="#333" stroke-width="1"/>
+    <circle cx="12" cy="-2" r="3" fill="#666" stroke="#333" stroke-width="1"/>
+    <circle cx="19" cy="-1" r="3" fill="#666" stroke="#333" stroke-width="1"/>
+    <circle cx="25" cy="1" r="2.5" fill="#666" stroke="#333" stroke-width="1"/>
+    <circle cx="30" cy="3" r="2" fill="#666" stroke="#333" stroke-width="1"/>
+    <!-- Foot -->
+    <ellipse cx="15" cy="20" rx="12" ry="25" fill="#666" stroke="#333" stroke-width="1"/>
+  </g>
+  
+  <!-- tr{AI}n text -->
+  <text x="100" y="30" text-anchor="middle" font-family="monospace" font-size="18" font-weight="bold" fill="#333">
+    tr<tspan fill="#0066cc">{AI}</tspan>n
+  </text>
+</svg>
