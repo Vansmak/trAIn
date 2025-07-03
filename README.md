@@ -141,7 +141,7 @@ Set up your health profile for better insights:
 
 <div align="center"> 
 <img src="https://github.com/user-attachments/assets/31a95b14-ebfb-492a-85c6-7aba2aaae153" width="250" alt="Main Interface">
-<img src="https://github.com/user-attachments/assets/4fd95de0-2cbf-4833-888f-c09dd74e9ebd" width="250" alt="Daily Entry View">
+
 <img src="https://github.com/user-attachments/assets/8645cfa2-97f2-4154-9337-0c08fca8ca0d" width="250" alt="Progress Tracking">
 </div>
 
