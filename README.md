@@ -2,7 +2,7 @@
 # tr{AI}n: Conversational health tracking that actually sticks.
 [![Buy Me A Coffee](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://buymeacoffee.com/vansmak)
 
-A web-based jouirnal for tracking your day, focusing calorie awareness. 
+A web-based jouirnal for tracking your day, focusing on calorie awareness. 
 
 This project started as scratching my own itch - I wanted a less tedious way to stay mindful of my health.  I'm not a programmer by trade, but I had a clear vision for the solution I needed.
 I used AI as a development tool to help implement my ideas faster, just like any other tool. The creativity, problem-solving, architecture decisions, and feature design are all mine - AI helped with code, syntax and implementation details.  All code is open source for anyone to review and audit.
