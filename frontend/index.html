@@ -918,9 +918,7 @@
                            'July', 'August', 'September', 'October', 'November', 'December'];
 
         // API configuration - update this for your server
-        const API_BASE = window.location.hostname === 'localhost' 
-            ? 'http://localhost:8081/api' 
-            : 'http://192.168.254.205:8081/api'; // Change this to your actual server
+        const API_BASE = `http://${window.location.hostname}:${window.location.port}/api`; 
         // Configuration at the top - easy to change later
         const AI_CONFIG = {
             name: 'Claude',
